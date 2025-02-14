@@ -1,0 +1,187 @@
+﻿@page
+@model VideoRecorderModel
+@{
+    ViewData["Title"] = "Video Recorder";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body class="bg-light">
+    <div class="container py-5 text-center">
+        <h2 class="mb-4">Video Recorder</h2>
+
+        <div class="d-flex justify-content-center mb-4">
+            @if (Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube)
+            {
+                var videoId = Model.ExtractYouTubeVideoId(Model.SelectedVideo.VideoUrl);
+                <iframe id="videoFrame" width="560" height="315" class="border rounded"
+                        src="https://www.youtube.com/embed/@videoId?enablejsapi=1"
+                        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                </iframe>
+            }
+            else
+            {
+                <video id="videoFrame" width="560" height="315" class="border rounded" controls>
+                    <source src="@Model.SelectedVideo.VideoUrl" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            }
+        </div>
+
+        <video id="cameraFeed" width="320" height="240" autoplay style="display: none;"></video>
+        <form id="videoUploadForm" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+        </form>
+
+        <div class="d-flex justify-content-center gap-3">
+            <button id="stopRecordingBtn" class="btn btn-danger" onclick="stopVideoRecording()">Stop Recording</button>
+        </div>
+    </div>
+
+    <script>
+        let player;
+        let isRecording = false;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let stream;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            let videoElement = document.getElementById("videoFrame");
+
+            if (videoElement && videoElement.tagName.toLowerCase() === "video") {
+                videoElement.addEventListener("play", startVideoRecording);
+                videoElement.addEventListener("ended", stopVideoRecording);
+            }
+        });
+
+        if (@(Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube ? "true" : "false")) {
+            let scriptTag = document.createElement('script');
+            scriptTag.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(scriptTag);
+        }
+
+        function onYouTubeIframeAPIReady() {
+            console.log("YouTube API Ready");
+
+            let videoId = "@Model.ExtractYouTubeVideoId(Model.SelectedVideo.VideoUrl)";
+            if (!videoId) {
+                console.error("Invalid YouTube URL");
+                return;
+            }
+
+            player = new YT.Player('videoFrame', {
+                videoId: videoId,
+                playerVars: { 'autoplay': 0, 'enablejsapi': 1 },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING && !isRecording) {
+                startVideoRecording();
+            } else if (event.data === YT.PlayerState.ENDED && isRecording) {
+                stopVideoRecording();
+            }
+        }
+
+        function startVideoRecording() {
+            if (isRecording) return;
+            isRecording = true;
+            recordedChunks = [];
+
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then(userStream => {
+                    stream = userStream;
+                    document.getElementById("cameraFeed").srcObject = stream;
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.start();
+                })
+                .catch(err => {
+                    console.error("Error accessing camera/microphone:", err);
+                    alert("Please allow camera and microphone access.");
+                    isRecording = false;
+                });
+        }
+
+        async function stopVideoRecording() {
+            if (!isRecording) return;
+            isRecording = false;
+
+            if (mediaRecorder) {
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: "video/webm" });
+                    stream.getTracks().forEach(track => track.stop());
+
+                    const formData = new FormData();
+                    formData.append("videoFile", blob, "reaction-video.webm");
+                    const authToken = getCookie("AuthToken");
+                    if (!authToken) {
+                        alert("User not logged in. Please log in again.");
+                        return;
+                    }
+
+                    const userId = parseUserIdFromToken(authToken);
+                    formData.append("userId", userId);
+
+                    const csrfTokenElement = document.querySelector("input[name='__RequestVerificationToken']");
+                    const csrfToken = csrfTokenElement ? csrfTokenElement.value : "";
+
+                    try {
+                        const response = await fetch("/VideoRecorder?handler=UploadVideo", {
+                            method: "POST",
+                            headers: csrfToken ? { "RequestVerificationToken": csrfToken } : {},
+                            body: formData
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            alert("Reaction video saved successfully!");
+                        } else {
+                            alert("Failed to save the video.");
+                        }
+                    } catch (error) {
+                        alert("Error uploading video. Please try again.");
+                    }
+                };
+                mediaRecorder.stop();
+            }
+        }
+
+        function getCookie(name) {
+            const cookies = document.cookie.split("; ");
+            for (let cookie of cookies) {
+                const [cookieName, cookieValue] = cookie.split("=");
+                if (cookieName === name) {
+                    return decodeURIComponent(cookieValue);
+                }
+            }
+            return null;
+        }
+
+        function parseUserIdFromToken(token) {
+            try {
+                const payload = JSON.parse(atob(token.split(".")[1]));
+                return payload.sub;
+            } catch (error) {
+                return null;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+﻿@* @page "/video"
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<h1>Blazor Video Recorder</h1>
+
+<video id="videoFeed" width="320" height="240" controls autoplay></video>
+<br />
+
+<button class="btn btn-success mb-2" @onclick="StartRecording">Start Recording</button>
+<button class="btn btn-danger mb-2" @onclick="StopRecording">Stop Recording</button>
+
+@code {
+    private async Task StartRecording()
+    {
+        Console.WriteLine("✅ Blazor: Start Recording button clicked");
+        await JSRuntime.InvokeVoidAsync("startVideoRecording", "videoFeed");
+    }
+
+    private async Task StopRecording()
+    {
+        Console.WriteLine("✅ Blazor: Stop Recording button clicked");
+        await JSRuntime.InvokeVoidAsync("stopVideoRecording");
+    }
+}
+ *@

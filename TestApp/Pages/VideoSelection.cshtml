@@ -1,0 +1,165 @@
+﻿@page
+@model VideoSelectionModel
+@{
+    ViewData["Title"] = "Select a Video";
+}
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #333;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .table th {
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+            transition: 0.3s;
+        }
+
+            .btn-primary:hover {
+                background-color: #0056b3;
+            }
+
+        .modal-content {
+            border-radius: 10px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            background-color: #007bff;
+            color: white;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .modal-body {
+            font-size: 16px;
+            color: #333;
+        }
+
+        .modal-footer {
+            border-top: none;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border: none;
+            transition: 0.3s;
+        }
+
+            .btn-success:hover {
+                background-color: #218838;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Select a Video</h2>
+
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var video in Model.AllVideos)
+                {
+                    <tr>
+                        <td class="align-middle">@video.Title</td>
+                        <td class="text-center">
+                            <a href="#" class="btn btn-primary btn-sm" onclick="openConsentModal('@video.Id')">
+                                🎬 Play & Record
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Consent Modal -->
+    <div class="modal fade" id="consentModal" tabindex="-1" aria-labelledby="consentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="consentModalLabel">Consent Agreement for Research Participation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        <strong>Purpose of Data Collection</strong><br>
+                        Your recorded video will be used solely for research purposes as part of our study on Deep Learning-Based Activity Monitoring for Estimating Attention Span Time During Lectures.
+                    </p>
+                    <p>
+                        <strong>Confidentiality and Data Protection</strong><br>
+                        Your recorded data will be kept strictly confidential and will not be shared publicly or with any third parties. The data will only be accessed by authorized researchers involved in this study.
+                    </p>
+                    <p>
+                        <strong>Voluntary Participation</strong><br>
+                        Participation is completely voluntary. You may choose not to proceed if you do not agree with the terms. You may withdraw your participation at any time before the recording starts.
+                    </p>
+                    <p class="fw-bold text-center">
+                        By clicking "I Agree", you confirm that you have read and understood the terms and consent to your recorded video being used for research purposes only.
+                    </p>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button id="agreeButton" class="btn btn-success">I Agree</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedVideoId = "";
+
+        function openConsentModal(videoId) {
+            selectedVideoId = videoId;
+            var modal = new bootstrap.Modal(document.getElementById('consentModal'));
+            modal.show();
+        }
+
+        document.getElementById("agreeButton").addEventListener("click", function () {
+            if (selectedVideoId) {
+                window.location.href = `/VideoRecorder?videoId=${selectedVideoId}`;
+            }
+        });
+    </script>
+
+</body>
+</html>

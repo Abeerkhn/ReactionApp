@@ -1,0 +1,101 @@
+﻿@page
+@model TestApp.Pages.RegisterModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #f4f4f4;
+        }
+
+        .register-container {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+            button:hover {
+                background: #218838;
+            }
+
+        .login-link {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="register-container">
+        <h3>Register</h3>
+
+        <!-- Display validation errors -->
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <p class="error">@Html.ValidationSummary()</p>
+        }
+
+        <form method="post">
+            <div>
+                <label>Full Name:</label>
+                <input asp-for="FullName" type="text" required />
+            </div>
+            <div>
+                <label>Email:</label>
+                <input asp-for="Email" type="email" required />
+            </div>
+            <div>
+                <label>Password:</label>
+                <input asp-for="Password" type="password" required />
+            </div>
+            <button type="submit">Register</button>
+        </form>
+
+        <div class="login-link">
+            <p>Already have an account? <a asp-page="/Login">Login</a></p>
+        </div>
+    </div>
+
+</body>
+</html>
