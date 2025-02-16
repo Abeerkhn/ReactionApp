@@ -20,10 +20,74 @@ namespace TestApp.Pages
             _videoRepository = videoRepository;
             _env = webHostEnvironment;
             this.userReactionsRepositories = userReactionsRepositories;
-                
+
         }
 
+        
         public Videos SelectedVideo { get; set; }
+
+
+        [BindProperty]
+        public long UserId { get; set; }
+
+        [BindProperty]
+        public long ReactionId { get; set; }
+
+        [BindProperty]
+        public System.Collections.Generic.List<UserSurveyResponseDto> SurveyResponses { get; set; }
+
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OnPostSubmitSurveyAsync()
+        {
+            if (SurveyResponses == null || !SurveyResponses.Any())
+            {
+                return BadRequest(new { success = false, message = "No responses received." });
+            }
+            if(UserId==null||ReactionId==null) {
+                return BadRequest(new { success = false, message = "Please let the reaction record first" });
+            }
+
+            try
+            {
+                long userId = UserId;       // Bound from hidden field
+                long reactionId = ReactionId;  // Bound from hidden field
+
+                // Save responses via repository (make sure this method is implemented)
+                 await userReactionsRepositories.SaveSurveyResponsesAsync(userId, reactionId, SurveyResponses);
+
+                return new JsonResult(new { success = true, message = "Survey submitted successfully." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return StatusCode(500, new { success = false, message = "Internal server error." });
+            }
+        }
+
+        // [ValidateAntiForgeryToken]
+        //public async Task<IActionResult> OnPostSubmitSurveyAsync([FromForm] List<UserSurveyResponseDto> request, long UserId)
+        //{
+        //    if (request == null || request == null || !request.Any())
+        //    {
+        //        return BadRequest(new { success = false, message = "No responses received." });
+        //    }
+
+        //    try
+        //    {
+        //        long userId = request.UserId;
+        //        long reactionId = request.ReactionId;
+
+        //        // Save responses via repository (make sure this method is implemented)
+        //        // await _userReactionsRepositories.SaveSurveyResponsesAsync(userId, reactionId, request.SurveyResponses);
+
+        //        return new JsonResult(new { success = true, message = "Survey submitted successfully." });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Error: {ex.Message}");
+        //        return StatusCode(500, new { success = false, message = "Internal server error." });
+        //    }
+        //}
 
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> OnPostUploadVideoAsync([FromForm] IFormFile videoFile, long userId, long videoId)
@@ -52,9 +116,10 @@ namespace TestApp.Pages
                 string savedUrl = $"/userreaction/{fileName}";
 
                 // Save record in the database AFTER the file is successfully stored
-                await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
-
-                return new JsonResult(new { success = true, videoUrl = savedUrl });
+                long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
+                UserId = userId;
+                ReactionId = reactionId;
+                return new JsonResult(new { success = true, videoUrl = savedUrl, reactionId=reactionId });
             }
             catch (Exception ex)
             {
@@ -103,19 +168,32 @@ namespace TestApp.Pages
         }
 
 
-        //private string ConvertToEmbedUrl(string videoUrl)
-        //{
-        //    if (videoUrl.Contains("youtu.be"))
-        //    {
-        //        var videoId = videoUrl.Split('/').Last().Split('?')[0];
-        //        return $"https://www.youtube.com/embed/{videoId}";
-        //    }
-        //    else if (videoUrl.Contains("youtube.com/watch?v="))
-        //    {
-        //        var videoId = videoUrl.Split("v=").Last().Split('&')[0];
-        //        return $"https://www.youtube.com/embed/{videoId}";
-        //    }
-        //    return videoUrl; // Return as is if no match
-        //}
+        
     }
 }
+
+public class SurveySubmissionRequest
+{
+    
+    public long UserId { get; set; }
+    public long ReactionId { get; set; }
+    public List<UserSurveyResponseDto> SurveyResponses { get; set; }
+}
+
+
+
+
+//private string ConvertToEmbedUrl(string videoUrl)
+//{
+//    if (videoUrl.Contains("youtu.be"))
+//    {
+//        var videoId = videoUrl.Split('/').Last().Split('?')[0];
+//        return $"https://www.youtube.com/embed/{videoId}";
+//    }
+//    else if (videoUrl.Contains("youtube.com/watch?v="))
+//    {
+//        var videoId = videoUrl.Split("v=").Last().Split('&')[0];
+//        return $"https://www.youtube.com/embed/{videoId}";
+//    }
+//    return videoUrl; // Return as is if no match
+//}

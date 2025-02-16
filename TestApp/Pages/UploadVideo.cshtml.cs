@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
 using System.Collections.Generic;
@@ -29,6 +29,9 @@ public class UploadVideoModel : PageModel
     public IFormFile VideoFile { get; set; } // For file uploads
 
     public List<Videos> Videos { get; set; } = new List<Videos>(); // List of videos
+    [BindProperty]
+    public List<SurveyQuestionDto> Questions { get; set; } = new List<SurveyQuestionDto>();
+
 
     public UploadVideoModel(IVideoRepository videoRepository, IUserReactionsRepositories userReactionRepo)
     {
@@ -64,6 +67,26 @@ public class UploadVideoModel : PageModel
         var reactionVideoUrl = await userReactionRepo.GetReactionVideoUrlAsync(reactionId);
         return new JsonResult(reactionVideoUrl);
     }
+
+    public async Task<IActionResult> OnGetGetSurveyResponsesAsync(long reactionId)
+    {
+        // Fetch the reaction with its survey responses (make sure your repository method is implemented)
+        var reaction = await userReactionRepo.GetReactionWithSurveyResponsesAsync(reactionId);
+        if (reaction == null || reaction.SurveyResponses == null || !reaction.SurveyResponses.Any())
+        {
+            return new JsonResult(new { success = false, message = "No survey responses found." });
+        }
+
+        // Map responses to an anonymous object (adjust property names as needed)
+        var responses = reaction.SurveyResponses.Select(sr => new {
+            questionText = sr.Question?.QuestionText,
+            answerText = sr.SelectedAnswer?.AnswerText
+        });
+
+        return new JsonResult(new { success = true, surveyResponses = responses });
+    }
+
+
     public async Task<IActionResult> OnPostAsync()
     {
         if (string.IsNullOrWhiteSpace(Title))
@@ -117,7 +140,7 @@ public class UploadVideoModel : PageModel
             return Page();
         }
 
-        // Create video entity
+        // ✅ Step 1: Create Video Entity
         var video = new Videos
         {
             Title = Title,
@@ -128,10 +151,29 @@ public class UploadVideoModel : PageModel
             UploadedBy = 1 // Assuming user ID is 1 for now
         };
 
-        await _videoRepository.AddVideoAsync(video);
+        // ✅ Step 2: Handle Survey Questions
+        var surveyQuestions = new List<SurveyQuestionDto>();
+
+        if (Questions != null && Questions.Any())
+        {
+            foreach (var question in Questions)
+            {
+                var surveyQuestion = new SurveyQuestionDto
+                {
+                    QuestionText = question.QuestionText,
+                    Answers = question.Answers?.Where(a => !string.IsNullOrWhiteSpace(a)).ToList() ?? new List<string>()
+                };
+
+                surveyQuestions.Add(surveyQuestion);
+            }
+        }
+
+        // ✅ Step 3: Save Video & Survey Data (Assuming _videoRepository supports saving questions too)
+        await _videoRepository.AddVideoAsync(video, surveyQuestions);
 
         return RedirectToPage("/UploadVideo"); // Refresh the page after upload
     }
+
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> OnPostDeleteVideoAsync(long videoId)
     {

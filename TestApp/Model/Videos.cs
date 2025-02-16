@@ -19,6 +19,10 @@
             // Navigation Property
             public Users? Users { get; set; }
             public ICollection<UserReactions>? Reactions { get; set; }
-        }
+
+        // One-to-One Relationship with Surveys
+        public long? SurveyId { get; set; } // Nullable: Some videos may not have surveys
+        public Surveys? Survey { get; set; }
+    }
     }
 

@@ -17,5 +17,8 @@
 
         public ICollection<Videos>? UploadedVideos { get; set; }
         public ICollection<UserReactions>? Reactions { get; set; }
+
+        // ✅ Add Missing Navigation Property
+        public ICollection<UserSurveyResponses>? SurveyResponses { get; set; }
     }
 }

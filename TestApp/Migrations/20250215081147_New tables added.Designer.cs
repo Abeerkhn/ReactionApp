@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TestApp.DbContext;
 
@@ -11,9 +12,11 @@ using TestApp.DbContext;
 namespace TestApp.Migrations
 {
     [DbContext(typeof(MainContext))]
-    partial class MainContextModelSnapshot : ModelSnapshot
+    [Migration("20250215081147_New tables added")]
+    partial class Newtablesadded
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -94,7 +97,7 @@ namespace TestApp.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long?>("VideoId")
+                    b.Property<long>("VideoId")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
@@ -102,8 +105,7 @@ namespace TestApp.Migrations
                     b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("VideoId")
-                        .IsUnique()
-                        .HasFilter("[VideoId] IS NOT NULL");
+                        .IsUnique();
 
                     b.ToTable("Surveys");
                 });
@@ -154,9 +156,6 @@ namespace TestApp.Migrations
                     b.Property<long>("QuestionId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("ReactionId")
-                        .HasColumnType("bigint");
-
                     b.Property<long>("SelectedAnswerId")
                         .HasColumnType("bigint");
 
@@ -166,8 +165,6 @@ namespace TestApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("QuestionId");
-
-                    b.HasIndex("ReactionId");
 
                     b.HasIndex("SelectedAnswerId");
 
@@ -283,7 +280,8 @@ namespace TestApp.Migrations
                     b.HasOne("TestApp.Model.Videos", "Video")
                         .WithOne("Survey")
                         .HasForeignKey("TestApp.Model.Surveys", "VideoId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("CreatedByUser");
 
@@ -315,12 +313,6 @@ namespace TestApp.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("TestApp.Model.UserReactions", "Reaction")
-                        .WithMany("SurveyResponses")
-                        .HasForeignKey("ReactionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("TestApp.Model.SurveyAnswers", "SelectedAnswer")
                         .WithMany("UserResponses")
                         .HasForeignKey("SelectedAnswerId")
@@ -334,8 +326,6 @@ namespace TestApp.Migrations
                         .IsRequired();
 
                     b.Navigation("Question");
-
-                    b.Navigation("Reaction");
 
                     b.Navigation("SelectedAnswer");
 
@@ -367,11 +357,6 @@ namespace TestApp.Migrations
             modelBuilder.Entity("TestApp.Model.Surveys", b =>
                 {
                     b.Navigation("Questions");
-                });
-
-            modelBuilder.Entity("TestApp.Model.UserReactions", b =>
-                {
-                    b.Navigation("SurveyResponses");
                 });
 
             modelBuilder.Entity("TestApp.Model.Users", b =>

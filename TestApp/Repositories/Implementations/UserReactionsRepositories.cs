@@ -54,7 +54,7 @@ namespace TestApp.Repositories
             return reaction?.ReactionUrl;
         }
     
-    public async Task<string> SaveReactionVideoAsync(long userId, long videoId, string videoUrl)
+    public async Task<long> SaveReactionVideoAsync(long userId, long videoId, string videoUrl)
         {
             try
             {
@@ -71,16 +71,49 @@ namespace TestApp.Repositories
                 _context.UserReactions.Add(reaction);
                 await _context.SaveChangesAsync();
 
-                return reaction.ReactionUrl;
+                return reaction.Id;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error saving reaction: {ex.Message}");
-                return null;
+                return 0;
             }
+        }
+
+        public async Task SaveSurveyResponsesAsync(long userId, long reactionId, List<UserSurveyResponseDto> responses)
+        {
+            var surveyResponses = responses.Select(dto => new UserSurveyResponses
+            {
+                UserId = userId,
+                ReactionId = reactionId,
+                QuestionId = dto.QuestionId,
+                SelectedAnswerId = dto.SelectedAnswerId,
+                AnsweredAt = DateTime.UtcNow
+            }).ToList();
+
+            _context.UserSurveyResponses.AddRange(surveyResponses);
+            await _context.SaveChangesAsync();
+        }
+
+
+        public async Task<UserReactions> GetReactionWithSurveyResponsesAsync(long reactionId)
+        {
+            return await _context.UserReactions
+        .Where(r => r.Id == reactionId)
+        .Include(r => r.SurveyResponses)
+            .ThenInclude(sr => sr.Question)
+        .Include(r => r.SurveyResponses)
+            .ThenInclude(sr => sr.SelectedAnswer)
+        .FirstOrDefaultAsync();
         }
     }
 }
+public class UserSurveyResponseDto
+{
+    public long QuestionId { get; set; }
+    public long SelectedAnswerId { get; set; }
+}
+
 public class UserReactionDto
 {
     public string FirstName { get; set; }

@@ -33,6 +33,7 @@
 </table>
 
 <!-- Add Video Modal -->
+<!-- Add Video Modal -->
 <div id="addVideoModal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('addVideoModal')">&times;</span>
@@ -42,7 +43,7 @@
             <input type="text" id="videoTitle" name="Title" required>
 
             <label for="videoDescription">Description:</label>
-            <textarea id="videoDescription" name="Description" ></textarea>
+            <textarea id="videoDescription" name="Description"></textarea>
 
             <label for="videoType">Video Type:</label>
             <select id="videoType" name="VideoType" onchange="toggleVideoInput()" required>
@@ -60,10 +61,20 @@
                 <input type="url" id="videoUrl" name="VideoUrl">
             </div>
 
+            <!-- Survey Questions Section -->
+            <h3>Survey Questions</h3>
+            <div id="questionsContainer"></div>
+            <button type="button" onclick="addQuestion()">+ Add Question</button>
+
             <button type="submit">Upload</button>
         </form>
     </div>
 </div>
+
+<script>
+  
+</script>
+
 <!-- User Reactions Modal -->
 <div id="userReactionsModal" class="modal">
     <div class="modal-content">
@@ -87,11 +98,101 @@
     <div class="modal-content">
         <span class="close-btn" onclick="closeReactionVideoModal()">&times;</span>
         <h2>Reaction Video</h2>
+        <input type="hidden" id="reactionIdHidden" value="" />
+
         <iframe id="reactionVideoIframe" width="100%" height="400px" frameborder="0" allowfullscreen></iframe>
+
+        <!-- New button to open Survey Responses Modal -->
+        <button onclick="openSurveyResponsesModal()">View Survey Responses</button>
+    </div>
+</div>
+<!-- Survey Responses Modal -->
+<div id="surveyResponsesModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeSurveyResponsesModal()">&times;</span>
+        <h2>Survey Responses</h2>
+        <div id="surveyResponsesContainer">
+            <!-- Survey responses will be injected here via JavaScript -->
+        </div>
     </div>
 </div>
 
 <script>
+    function openSurveyResponsesModal() {
+        let reactionId = document.getElementById("reactionIdHidden").value;
+        if (!reactionId) {
+            alert("Reaction ID not available.");
+            return;
+        }
+        // Then fetch survey responses using the reactionId:
+        fetch(`/UploadVideo?handler=GetSurveyResponses&reactionId=${reactionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.surveyResponses) {
+                    let container = document.getElementById("surveyResponsesContainer");
+                    container.innerHTML = ""; // Clear previous content
+                    data.surveyResponses.forEach(response => {
+                        let div = document.createElement("div");
+                        div.innerHTML = `<p><strong>Question:</strong> ${response.questionText}</p>
+                                         <p><strong>Answer:</strong> ${response.answerText}</p>
+                                         <hr/>`;
+                        container.appendChild(div);
+                    });
+                    // Open the survey responses modal
+                    let modal = document.getElementById("surveyResponsesModal");
+                    modal.style.display = "block";
+                    modal.style.visibility = "visible";
+                    modal.style.opacity = "1";
+                } else {
+                    alert("No survey responses found.");
+                }
+            })
+            .catch(error => console.error("Error fetching survey responses:", error));
+    }
+
+    // Function to close the Survey Responses Modal
+    function closeSurveyResponsesModal() {
+        let modal = document.getElementById("surveyResponsesModal");
+        modal.style.display = "none";
+        modal.style.visibility = "hidden";
+        modal.style.opacity = "0";
+    }
+    function toggleVideoInput() {
+        const videoType = document.getElementById("videoType").value;
+        document.getElementById("fileUploadSection").style.display = (videoType === "Uploaded") ? "block" : "none";
+        document.getElementById("youtubeUrlSection").style.display = (videoType === "YouTube") ? "block" : "none";
+    }
+
+    function addQuestion() {
+        const container = document.getElementById("questionsContainer");
+        const questionIndex = container.children.length;
+
+        const questionDiv = document.createElement("div");
+        questionDiv.className = "question-group";
+        questionDiv.innerHTML = `
+                    <label>Question:</label>
+                    <input type="text" name="Questions[${questionIndex}].QuestionText" required>
+                    <div class="answers-container" id="answersContainer${questionIndex}">
+                        <label>Answers:</label>
+                        <input type="text" name="Questions[${questionIndex}].Answers[0]" required>
+                    </div>
+                    <button type="button" onclick="addAnswer(${questionIndex})">+ Add Answer</button>
+                    <hr>
+                `;
+        container.appendChild(questionDiv);
+    }
+
+    function addAnswer(questionIndex) {
+        const answerContainer = document.getElementById(`answersContainer${questionIndex}`);
+        const answerIndex = answerContainer.children.length - 1;
+
+        const answerInput = document.createElement("input");
+        answerInput.type = "text";
+        answerInput.name = `Questions[${questionIndex}].Answers[${answerIndex}]`;
+        answerInput.required = true;
+        answerContainer.appendChild(answerInput);
+    }
+
     // Delete video function, including the anti-forgery token in the header
     function deleteVideo(videoId) {
         if (!confirm("Are you sure you want to delete this video?")) return;
@@ -159,6 +260,8 @@
     }
 
     function fetchReactionVideo(reactionId) {
+        // Update the hidden field in the reaction video modal
+        document.getElementById("reactionIdHidden").value = reactionId;
         fetch(`/UploadVideo?handler=ReactionVideo&reactionId=${reactionId}`)
             .then(response => response.json())
             .then(videoUrl => {
@@ -167,6 +270,7 @@
                     return;
                 }
                 document.getElementById("reactionVideoIframe").src = videoUrl;
+
                 showModal("reactionVideoModal", "userReactionsListModal");
             })
             .catch(error => console.error("Error fetching reaction video:", error));
@@ -198,22 +302,55 @@
         closeModal("reactionVideoModal");
     }
 
-    function toggleVideoInput() {
-        const videoType = document.getElementById("videoType").value;
-        const fileUploadSection = document.getElementById("fileUploadSection");
-        const youtubeUrlSection = document.getElementById("youtubeUrlSection");
+    // function toggleVideoInput() {
+    //     const videoType = document.getElementById("videoType").value;
+    //     const fileUploadSection = document.getElementById("fileUploadSection");
+    //     const youtubeUrlSection = document.getElementById("youtubeUrlSection");
 
-        if (videoType === "Uploaded") {
-            fileUploadSection.style.display = "block";
-            youtubeUrlSection.style.display = "none";
-        } else {
-            fileUploadSection.style.display = "none";
-            youtubeUrlSection.style.display = "block";
-        }
-    }
+    //     if (videoType === "Uploaded") {
+    //         fileUploadSection.style.display = "block";
+    //         youtubeUrlSection.style.display = "none";
+    //     } else {
+    //         fileUploadSection.style.display = "none";
+    //         youtubeUrlSection.style.display = "block";
+    //     }
+    // }
 </script>
 
 <style>
+
+    
+    .modal {
+        display: none;
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .modal-content {
+        background-color: white;
+        padding: 20px;
+        margin: 10% auto;
+        width: 50%;
+        position: relative;
+        border-radius: 5px;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+
     .modal {
         display: none;
         position: fixed;

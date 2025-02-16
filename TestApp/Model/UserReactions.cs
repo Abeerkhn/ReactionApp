@@ -10,7 +10,11 @@
         public DateTime? ReactedAt { get; set; }
         public Videos? Videos { get; set; }
         public Users? Users { get; set; }
+        // Ensure Survey is Attempted
+        public bool HasAttemptedSurvey { get; set; } = false;
 
+        // ✅ List of User Survey Responses related to this reaction
+        public List<UserSurveyResponses>? SurveyResponses { get; set; }
     }
 
 }
