@@ -8,17 +8,134 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"]</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <!-- Removed Bootstrap – using plain CSS instead -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-</head>
-<body class="bg-light">
-    <div class="container py-5 text-center">
-        <h2 class="mb-4">Video Recorder</h2>
+    <style>
+        /* Global Styles */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa; /* light background */
+        }
 
+        /* Container & Layout */
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 20px; /* equivalent to py-5 */
+            text-align: center; /* text-center */
+        }
+
+        .d-flex {
+            display: flex;
+        }
+
+        .justify-content-center {
+            justify-content: center;
+        }
+
+        .gap-3 {
+            gap: 1rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1.5rem;
+        }
+
+        /* Border and Rounded Corners */
+        .border {
+            border: 1px solid #ccc;
+        }
+
+        .rounded {
+            border-radius: 5px;
+        }
+
+        /* Button Styles */
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            text-decoration: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+
+            .btn-primary:hover {
+                background-color: #0b5ed7;
+            }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+            .btn-danger:hover {
+                background-color: #bb2d3b;
+            }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header,
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            margin: 0;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+       @*  <h2 class="mb-4">Video Recorder</h2>
+ *@
         <div class="d-flex justify-content-center mb-4">
             @if (Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube)
             {
@@ -42,32 +159,23 @@
         <form id="videoUploadForm" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
         </form>
-       
 
-        <div class="d-flex justify-content-center gap-3">
-            <!-- Button to trigger survey modal -->
+       @*  <div class="d-flex justify-content-center gap-3">
             <button id="openSurveyModalBtn" class="btn btn-primary">Take Survey</button>
-
             <button id="stopRecordingBtn" class="btn btn-danger" onclick="stopVideoRecording()">Stop Recording</button>
-        </div>
+        </div> *@
     </div>
-   
 
     <!-- Survey Modal -->
-    <!-- Survey Modal -->
-    <!-- Survey Modal -->
-    <!-- Survey Modal -->
-    <div id="surveyModal" class="modal-overlay" style="display: none;">
+    <div id="surveyModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
                 <h5 class="modal-title">Survey Questions</h5>
                 <button class="close-btn" onclick="closeSurveyModal()">×</button>
             </div>
             <div class="modal-body">
-                <!-- The survey form posts to the same page -->
                 <form id="surveyForm" method="post" asp-page-handler="SubmitSurvey">
                     @Html.AntiForgeryToken()
-                    <!-- Hidden fields to persist UserId and ReactionId -->
                     <input type="hidden" id="userId" name="UserId" value="@Model.UserId" />
                     <input type="hidden" id="reactionId" name="ReactionId" value="@Model.ReactionId" />
                     @{
@@ -77,12 +185,10 @@
                     {
                         <div class="mb-3 survey-question" data-question-id="@question.Id">
                             <p><strong>@question.QuestionText</strong></p>
-                            <!-- Bind the question id with the list index -->
                             <input type="hidden" name="SurveyResponses[@i].QuestionId" value="@question.Id" />
                             @foreach (var answer in question.Answers)
                             {
                                 <div>
-                                    <!-- Radio buttons for a single answer per question -->
                                     <input type="radio" name="SurveyResponses[@i].SelectedAnswerId" value="@answer.Id" />
                                     <label>@answer.AnswerText</label>
                                 </div>
@@ -93,9 +199,9 @@
                     <button type="submit" class="btn btn-primary">Submit Survey</button>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" onclick="closeSurveyModal()">Close</button>
-            </div>
+            @* <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeSurveyModal()">Close</button>
+            </div> *@
         </div>
     </div>
 
@@ -105,51 +211,6 @@
         let mediaRecorder;
         let recordedChunks = [];
         let stream;
-
-        // function submitSurvey() {
-        //     let responses = [];
-        //     // Iterate over each survey question container
-        //     document.querySelectorAll(".survey-question").forEach(questionElement => {
-        //         let questionId = questionElement.getAttribute("data-question-id");
-        //         let selectedInput = questionElement.querySelector("input[type=radio]:checked");
-        //         if (selectedInput) {
-        //             responses.push({
-        //                 questionId: parseInt(questionId),
-        //                 selectedAnswerId: parseInt(selectedInput.value)
-        //             });
-        //         }
-        //     });
-
-        //     // Retrieve the userId and reactionId from the hidden fields
-        //     let userId = document.getElementById("userId").value;
-        //     let reactionId = document.getElementById("reactionId").value;
-
-        //     let payload = {
-        //         UserId: parseInt(userId),
-        //         ReactionId: parseInt(reactionId),
-        //         SurveyResponses: responses
-        //     };
-
-
-        //     fetch('/VideoRecorder?handler=SubmitSurvey', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json',
-        //              'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-        //         },
-        //         body: JSON.stringify(payload)
-        //     })
-        //         .then(response => response.json())
-        //         .then(data => {
-        //             if (data.success) {
-        //                 alert("Survey submitted successfully!");
-        //                 closeSurveyModal();
-        //             } else {
-        //                 alert("Failed to submit survey: " + data.message);
-        //             }
-        //         })
-        //         .catch(error => console.error("Error submitting survey:", error));
-        // }
 
         function submitSurvey() {
             const form = document.getElementById('surveyForm');
@@ -164,6 +225,7 @@
                     if (data.success) {
                         alert("Survey submitted successfully!");
                         closeSurveyModal();
+                        window.location.href = '/VideoSelection';
                     } else {
                         alert("Failed to submit survey: " + data.message);
                     }
@@ -187,14 +249,11 @@
         }
 
         function onYouTubeIframeAPIReady() {
-            console.log("YouTube API Ready");
-
             let videoId = "@Model.ExtractYouTubeVideoId(Model.SelectedVideo.VideoUrl)";
             if (!videoId) {
                 console.error("Invalid YouTube URL");
                 return;
             }
-
             player = new YT.Player('videoFrame', {
                 videoId: videoId,
                 playerVars: { 'autoplay': 0, 'enablejsapi': 1 },
@@ -236,13 +295,6 @@
                 });
         }
 
-                document.addEventListener("DOMContentLoaded", function () {
-            let surveyModalElement = document.getElementById("surveyModal");
-            if (surveyModalElement) {
-                window.surveyModal = new bootstrap.Modal(surveyModalElement);
-            }
-        });
-
         function openSurveyModal() {
             document.getElementById("surveyModal").style.display = "flex";
         }
@@ -252,6 +304,7 @@
         }
 
         document.getElementById("openSurveyModalBtn").addEventListener("click", openSurveyModal);
+
         async function stopVideoRecording() {
             if (!isRecording) return;
             isRecording = false;
@@ -271,9 +324,8 @@
 
                     const userId = parseUserIdFromToken(authToken);
                     formData.append("userId", userId);
-                    const videoId = 3;
-                    formData.append("videoId", videoId)
-
+                    const videoId = getParameterByName('videoId');
+                    formData.append("videoId", videoId);
                     const csrfTokenElement = document.querySelector("input[name='__RequestVerificationToken']");
                     const csrfToken = csrfTokenElement ? csrfTokenElement.value : "";
 
@@ -287,11 +339,9 @@
                         const data = await response.json();
                         if (data.success) {
                             alert("Reaction video saved successfully!");
-                            //localStorage.setItem("reactionId", data.reactionId); // Save reaction ID
-                            
                             document.getElementById("reactionId").value = data.reactionId;
                             document.getElementById("userId").value = userId;
-                            openSurveyModal()
+                            openSurveyModal();
                         } else {
                             alert("Failed to save the video.");
                         }
@@ -301,6 +351,15 @@
                 };
                 mediaRecorder.stop();
             }
+        }
+
+        function getParameterByName(name, url = window.location.href) {
+            name = name.replace(/[\[\]]/g, '\\$&');
+            const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
         }
 
         function getCookie(name) {
@@ -325,45 +384,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-<!-- Survey Modal -->
-
-<style>
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal-box {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        width: 400px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .close-btn {
-        background: none;
-        border: none;
-        font-size: 20px;
-        cursor: pointer;
-    }
-</style>
-
-

@@ -43,9 +43,6 @@ namespace TestApp.Pages
             {
                 return BadRequest(new { success = false, message = "No responses received." });
             }
-            if(UserId==null||ReactionId==null) {
-                return BadRequest(new { success = false, message = "Please let the reaction record first" });
-            }
 
             try
             {
@@ -54,8 +51,8 @@ namespace TestApp.Pages
 
                 // Save responses via repository (make sure this method is implemented)
                  await userReactionsRepositories.SaveSurveyResponsesAsync(userId, reactionId, SurveyResponses);
-
-                return new JsonResult(new { success = true, message = "Survey submitted successfully." });
+                return RedirectToPage("/VideoSelection");
+            //    return new JsonResult(new { success = true, message = "Survey submitted successfully." });
             }
             catch (Exception ex)
             {
@@ -117,8 +114,8 @@ namespace TestApp.Pages
 
                 // Save record in the database AFTER the file is successfully stored
                 long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
-                UserId = userId;
-                ReactionId = reactionId;
+               // UserId = userId;
+                //ReactionId = reactionId;
                 return new JsonResult(new { success = true, videoUrl = savedUrl, reactionId=reactionId });
             }
             catch (Exception ex)

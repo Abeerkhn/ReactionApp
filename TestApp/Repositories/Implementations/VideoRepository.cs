@@ -75,10 +75,15 @@ public class VideoRepository : IVideoRepository
         var video =   await   _context.Videos.AsQueryable().Where(x=>x.Id==videoId).FirstOrDefaultAsync();
             if(video is not null)
             {
-                 
-                var reactionlist = await _context.UserReactions.AsQueryable() .Where(x=>x.VideoId==videoId).ToListAsync();
-                if(reactionlist is not null)
-                {
+
+                var reactionlist = await _context.UserReactions.AsQueryable().Where(x => x.VideoId == videoId).ToListAsync();
+                
+                if (reactionlist is not null)
+                { foreach(var reaction in reactionlist)
+                    {
+                        var surveylist = await _context.UserSurveyResponses.AsQueryable().Where(x => x.ReactionId == reaction.Id).ToListAsync();
+                        _context.RemoveRange(surveylist);
+                    }
                     _context.RemoveRange(reactionlist);
                 }
                 _context.Remove(video);
