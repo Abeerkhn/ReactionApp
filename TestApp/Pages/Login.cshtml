@@ -7,8 +7,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login</title>
     <style>
         body {
@@ -53,23 +53,27 @@
                 background: #0056b3;
             }
 
-        .register-button {
-            background: #28a745;
-        }
-
-            .register-button:hover {
-                background: #218838;
-            }
-
         .error {
             color: red;
             font-size: 14px;
             margin-top: 5px;
         }
+
+        /* Register link styling */
+        .register-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #007bff;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+            .register-link:hover {
+                text-decoration: underline;
+            }
     </style>
 </head>
 <body>
-
     <div class="login-container">
         <h3>Login</h3>
 
@@ -91,11 +95,11 @@
             <button type="submit">Login</button>
         </form>
 
-        <!-- Register Button -->
-        <form method="get" asp-page="/Register">
-            <button type="submit" class="register-button">Register</button>
-        </form>
+        <!-- Register Link -->
+        <p>
+            Don't have an account?
+            <a class="register-link" href="/Register">Register here</a>
+        </p>
     </div>
-
 </body>
 </html>
