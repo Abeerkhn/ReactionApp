@@ -18,15 +18,14 @@
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #f8f9fa; /* light background */
+            background-color: #f8f9fa;
         }
-
         /* Container & Layout */
         .container {
             max-width: 960px;
             margin: 0 auto;
-            padding: 40px 20px; /* equivalent to py-5 */
-            text-align: center; /* text-center */
+            padding: 40px 20px;
+            text-align: center;
         }
 
         .d-flex {
@@ -44,7 +43,6 @@
         .mb-4 {
             margin-bottom: 1.5rem;
         }
-
         /* Border and Rounded Corners */
         .border {
             border: 1px solid #ccc;
@@ -53,7 +51,6 @@
         .rounded {
             border-radius: 5px;
         }
-
         /* Button Styles */
         .btn {
             display: inline-block;
@@ -85,7 +82,6 @@
             .btn-danger:hover {
                 background-color: #bb2d3b;
             }
-
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -94,7 +90,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.5);
-            display: none; /* Hidden by default */
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -133,26 +129,46 @@
     </style>
 </head>
 <body>
+    <!-- Instructions Modal (Displayed on page load) -->
+    <div id="instructionsModal" class="modal-overlay" style="display: flex;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h5 class="modal-title">Instructions</h5>
+            </div>
+            <div class="modal-body">
+                <p>1️⃣ Watch the Full Video</p>
+                <p>2️⃣ Attempt the Quiz</p>
+                <button id="gotItBtn" class="btn btn-primary">Got it!</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
-       @*  <h2 class="mb-4">Video Recorder</h2>
- *@
+        @* Video Container *@
         <div class="d-flex justify-content-center mb-4">
             @if (Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube)
             {
                 var videoId = Model.ExtractYouTubeVideoId(Model.SelectedVideo.VideoUrl);
+                <!-- YouTube embed with controls hidden -->
                 <iframe id="videoFrame" width="560" height="315" class="border rounded"
-                        src="https://www.youtube.com/embed/@videoId?enablejsapi=1"
+                        src="https://www.youtube.com/embed/@videoId?enablejsapi=1&controls=0"
                         frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen>
                 </iframe>
             }
             else
             {
-                <video id="videoFrame" width="560" height="315" class="border rounded" controls>
+                <!-- HTML5 video without default controls -->
+                <video id="videoFrame" width="560" height="315" class="border rounded">
                     <source src="@Model.SelectedVideo.VideoUrl" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             }
+        </div>
+
+        <!-- Custom Play/Pause Control -->
+        <div class="d-flex justify-content-center gap-3 mb-4">
+            <button id="playPauseBtn" class="btn btn-primary">Play</button>
         </div>
 
         <video id="cameraFeed" width="320" height="240" autoplay style="display: none;"></video>
@@ -160,10 +176,7 @@
             @Html.AntiForgeryToken()
         </form>
 
-       @*  <div class="d-flex justify-content-center gap-3">
-            <button id="openSurveyModalBtn" class="btn btn-primary">Take Survey</button>
-            <button id="stopRecordingBtn" class="btn btn-danger" onclick="stopVideoRecording()">Stop Recording</button>
-        </div> *@
+        @* Survey Modal and other elements remain unchanged *@
     </div>
 
     <!-- Survey Modal -->
@@ -199,9 +212,6 @@
                     <button type="submit" class="btn btn-primary">Submit Survey</button>
                 </form>
             </div>
-            @* <div class="modal-footer">
-                <button type="button" class="btn" onclick="closeSurveyModal()">Close</button>
-            </div> *@
         </div>
     </div>
 
@@ -212,36 +222,51 @@
         let recordedChunks = [];
         let stream;
 
-        function submitSurvey() {
-            const form = document.getElementById('surveyForm');
-            const formData = new FormData(form);
+        // On "Got it!" click, attempt to request camera and microphone access.
+        document.getElementById("gotItBtn").addEventListener("click", async function () {
+            try {
+                const testStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                testStream.getTracks().forEach(track => track.stop());
+                document.getElementById("instructionsModal").style.display = "none";
+            } catch (error) {
+                alert("Camera and microphone permissions are required to continue. Please allow access to proceed.");
+            }
+        });
 
-            fetch('/VideoRecorder?handler=SubmitSurvey', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Survey submitted successfully!");
-                        closeSurveyModal();
-                        window.location.href = '/VideoSelection';
-                    } else {
-                        alert("Failed to submit survey: " + data.message);
-                    }
-                })
-                .catch(error => console.error("Error submitting survey:", error));
-        }
+        // Toggle play/pause functionality for both HTML5 and YouTube players.
+        document.getElementById("playPauseBtn").addEventListener("click", function () {
+            // For YouTube
+            if (@(Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube ? "true" : "false")) {
+                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    player.pauseVideo();
+                    this.innerText = "Play";
+                } else if (player) {
+                    player.playVideo();
+                    this.innerText = "Pause";
+                }
+            } else {
+                // For HTML5 video
+                const video = document.getElementById("videoFrame");
+                if (video.paused) {
+                    video.play();
+                    this.innerText = "Pause";
+                } else {
+                    video.pause();
+                    this.innerText = "Play";
+                }
+            }
+        });
 
+        // Existing event listeners for HTML5 video playback
         document.addEventListener("DOMContentLoaded", function () {
-            let videoElement = document.getElementById("videoFrame");
-
+            const videoElement = document.getElementById("videoFrame");
             if (videoElement && videoElement.tagName.toLowerCase() === "video") {
                 videoElement.addEventListener("play", startVideoRecording);
                 videoElement.addEventListener("ended", stopVideoRecording);
             }
         });
 
+        // Load YouTube API if needed
         if (@(Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube ? "true" : "false")) {
             let scriptTag = document.createElement('script');
             scriptTag.src = "https://www.youtube.com/iframe_api";
@@ -256,12 +281,18 @@
             }
             player = new YT.Player('videoFrame', {
                 videoId: videoId,
-                playerVars: { 'autoplay': 0, 'enablejsapi': 1 },
+                playerVars: { 'autoplay': 0, 'enablejsapi': 1, 'controls': 0 },
                 events: { 'onStateChange': onPlayerStateChange }
             });
         }
 
         function onPlayerStateChange(event) {
+            // Optionally sync custom button text based on player state.
+            if (event.data === YT.PlayerState.PLAYING) {
+                document.getElementById("playPauseBtn").innerText = "Pause";
+            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                document.getElementById("playPauseBtn").innerText = "Play";
+            }
             if (event.data === YT.PlayerState.PLAYING && !isRecording) {
                 startVideoRecording();
             } else if (event.data === YT.PlayerState.ENDED && isRecording) {
@@ -273,19 +304,16 @@
             if (isRecording) return;
             isRecording = true;
             recordedChunks = [];
-
             navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then(userStream => {
                     stream = userStream;
                     document.getElementById("cameraFeed").srcObject = stream;
                     mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
-
                     mediaRecorder.ondataavailable = event => {
                         if (event.data.size > 0) {
                             recordedChunks.push(event.data);
                         }
                     };
-
                     mediaRecorder.start();
                 })
                 .catch(err => {
@@ -303,17 +331,15 @@
             document.getElementById("surveyModal").style.display = "none";
         }
 
-        document.getElementById("openSurveyModalBtn").addEventListener("click", openSurveyModal);
+        document.getElementById("openSurveyModalBtn")?.addEventListener("click", openSurveyModal);
 
         async function stopVideoRecording() {
             if (!isRecording) return;
             isRecording = false;
-
             if (mediaRecorder) {
                 mediaRecorder.onstop = async () => {
                     const blob = new Blob(recordedChunks, { type: "video/webm" });
                     stream.getTracks().forEach(track => track.stop());
-
                     const formData = new FormData();
                     formData.append("videoFile", blob, "reaction-video.webm");
                     const authToken = getCookie("AuthToken");
@@ -321,21 +347,18 @@
                         alert("User not logged in. Please log in again.");
                         return;
                     }
-
                     const userId = parseUserIdFromToken(authToken);
                     formData.append("userId", userId);
                     const videoId = getParameterByName('videoId');
                     formData.append("videoId", videoId);
                     const csrfTokenElement = document.querySelector("input[name='__RequestVerificationToken']");
                     const csrfToken = csrfTokenElement ? csrfTokenElement.value : "";
-
                     try {
                         const response = await fetch("/VideoRecorder?handler=UploadVideo", {
                             method: "POST",
                             headers: csrfToken ? { "RequestVerificationToken": csrfToken } : {},
                             body: formData
                         });
-
                         const data = await response.json();
                         if (data.success) {
                             alert("Reaction video saved successfully!");
