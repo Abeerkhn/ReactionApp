@@ -77,14 +77,16 @@ public class UploadVideoModel : PageModel
             return new JsonResult(new { success = false, message = "No survey responses found." });
         }
 
-        // Map responses to an anonymous object (adjust property names as needed)
+        // Map responses to an anonymous object with a flag indicating if the selected answer is correct
         var responses = reaction.SurveyResponses.Select(sr => new {
             questionText = sr.Question?.QuestionText,
-            answerText = sr.SelectedAnswer?.AnswerText
+            answerText = sr.SelectedAnswer?.AnswerText,
+            isCorrect = sr.SelectedAnswer != null && sr.SelectedAnswer.IsCorrect
         });
 
         return new JsonResult(new { success = true, surveyResponses = responses });
     }
+
 
 
     public async Task<IActionResult> OnPostAsync()
@@ -158,10 +160,20 @@ public class UploadVideoModel : PageModel
         {
             foreach (var question in Questions)
             {
+                List<SurveyAnswerDto> answers= new List<SurveyAnswerDto>();
+                foreach(var answer in question.Answers)
+                {
+                    answers.Add(new SurveyAnswerDto
+                    {
+                        AnswerText = answer.AnswerText,
+                        IsCorrect = answer.IsCorrect
+                    });
+
+                }
                 var surveyQuestion = new SurveyQuestionDto
                 {
                     QuestionText = question.QuestionText,
-                    Answers = question.Answers?.Where(a => !string.IsNullOrWhiteSpace(a)).ToList() ?? new List<string>()
+                    Answers =answers
                 };
 
                 surveyQuestions.Add(surveyQuestion);

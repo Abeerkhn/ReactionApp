@@ -46,7 +46,9 @@ public class VideoRepository : IVideoRepository
             {
                 surveyQuestion.Answers.Add(new SurveyAnswers
                 {
-                    AnswerText = answerText
+                    AnswerText = answerText.AnswerText,
+                    IsCorrect= answerText.IsCorrect
+                    
                 });
             }
 
@@ -125,5 +127,10 @@ public class VideoRepository : IVideoRepository
 public class SurveyQuestionDto
 {
     public string QuestionText { get; set; }
-    public List<string> Answers { get; set; }
+    public List<SurveyAnswerDto> Answers { get; set; }
+}
+public class SurveyAnswerDto
+{
+    public string AnswerText { get; set; }
+    public bool IsCorrect { get; set; }
 }

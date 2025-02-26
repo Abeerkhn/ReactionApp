@@ -158,26 +158,52 @@
             const questionDiv = document.createElement("div");
             questionDiv.className = "question-group";
             questionDiv.innerHTML = `
-                        <label>Question:</label>
-                        <input type="text" name="Questions[${questionIndex}].QuestionText" required class="form-control mb-2">
-                        <div class="answers-container" id="answersContainer${questionIndex}">
-                            <label>Answers:</label>
-                            <input type="text" name="Questions[${questionIndex}].Answers[0]" required class="form-control mb-2">
-                        </div>
-                        <button type="button" class="btn btn-secondary" onclick="addAnswer(${questionIndex})">+ Add Answer</button>
-                        <hr>`;
+                <label>Question:</label>
+                <input type="text" name="Questions[${questionIndex}].QuestionText" required class="form-control mb-2">
+                <div class="answers-container" id="answersContainer${questionIndex}">
+                    <label>Answers:</label>
+                    <div class="answer-group">
+                        <!-- Checkbox comes first -->
+                        <input type="checkbox" name="Questions[${questionIndex}].Answers[0].IsCorrect" value="true" onclick="ensureSingleCorrect(this, ${questionIndex})" />
+                        <!-- Hidden input follows -->
+                        <input type="hidden" name="Questions[${questionIndex}].Answers[0].IsCorrect" value="false" />
+                        <input type="text" name="Questions[${questionIndex}].Answers[0].AnswerText" required class="form-control mb-2">
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="addAnswer(${questionIndex})">+ Add Answer</button>
+                <hr>`;
             container.appendChild(questionDiv);
         }
 
+
+
+        function ensureSingleCorrect(checkbox, questionIndex) {
+            if (checkbox.checked) {
+                // Uncheck all other checkboxes in the same question
+                const answerContainer = document.getElementById(`answersContainer${questionIndex}`);
+                const checkboxes = answerContainer.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    if (cb !== checkbox) {
+                        cb.checked = false;
+                    }
+                });
+            }
+        }
+
+
+
         function addAnswer(questionIndex) {
             const answerContainer = document.getElementById(`answersContainer${questionIndex}`);
-            const answerIndex = answerContainer.children.length - 1;
-            const answerInput = document.createElement("input");
-            answerInput.type = "text";
-            answerInput.name = `Questions[${questionIndex}].Answers[${answerIndex}]`;
-            answerInput.required = true;
-            answerInput.className = "form-control mb-2";
-            answerContainer.appendChild(answerInput);
+            const answerIndex = answerContainer.getElementsByClassName("answer-group").length;
+
+            const answerGroupDiv = document.createElement("div");
+            answerGroupDiv.className = "answer-group";
+            answerGroupDiv.innerHTML = `
+                <input type="checkbox" name="Questions[${questionIndex}].Answers[${answerIndex}].IsCorrect" value="true" onclick="ensureSingleCorrect(this, ${questionIndex})" />
+                <input type="hidden" name="Questions[${questionIndex}].Answers[${answerIndex}].IsCorrect" value="false" />
+                <input type="text" name="Questions[${questionIndex}].Answers[${answerIndex}].AnswerText" required class="form-control mb-2">
+            `;
+            answerContainer.appendChild(answerGroupDiv);
         }
 
         // Delete video function (AJAX example)
@@ -277,11 +303,13 @@
                         container.innerHTML = "";
                         data.surveyResponses.forEach(response => {
                             let div = document.createElement("div");
+                            let correctnessText = response.isCorrect ? "Correct" : "Incorrect";
                             div.innerHTML = `<p><strong>Question:</strong> ${response.questionText}</p>
-                                                 <p><strong>Answer:</strong> ${response.answerText}</p>
-                                                 <hr/>`;
+                             <p><strong>Answer:</strong> ${response.answerText} (${correctnessText})</p>
+                             <hr/>`;
                             container.appendChild(div);
                         });
+
                         let modal = document.getElementById("surveyResponsesModal");
                         modal.style.display = "block";
                         modal.style.visibility = "visible";
