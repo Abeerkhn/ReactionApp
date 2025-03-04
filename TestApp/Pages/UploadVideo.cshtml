@@ -35,6 +35,8 @@
                         <td>
                             <button class="btn btn-sm btn-primary" onclick="seeReactions(@video.Id)">See Reactions</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteVideo(@video.Id)">Delete</button>
+                            <button class="btn btn-sm btn-info" onclick="downloadSurveyResponses(@video.Id)">Download CSV</button>
+
                         </td>
                     </tr>
                 }
@@ -175,6 +177,10 @@
             container.appendChild(questionDiv);
         }
 
+        function downloadSurveyResponses(videoId) {
+            // Redirect to the new page handler with the videoId as query string parameter.
+            window.location.href = `/UploadVideo?handler=DownloadSurveyResponsesCsv&videoId=` + videoId;
+        }
 
 
         function ensureSingleCorrect(checkbox, questionIndex) {

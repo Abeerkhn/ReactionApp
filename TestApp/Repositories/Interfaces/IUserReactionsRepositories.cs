@@ -11,5 +11,6 @@ namespace TestApp.Repositories.Interfaces
         Task<List<UserReactions>> GetReactionsByUserAsync(long userId, long videoId);
         Task<string> GetReactionVideoUrlAsync(long reactionId);
         Task<UserReactions> GetReactionWithSurveyResponsesAsync(long reactionId);
+        Task<List<SurveyResponseCsvDto>> GetSurveyResponsesByVideoAsync(long videoId);
     }
 }

@@ -10,7 +10,7 @@ using TestApp.Repositories.Interfaces;
 
 namespace TestApp.Repositories
 {
-    public class UserReactionsRepository:IUserReactionsRepositories
+    public class UserReactionsRepository : IUserReactionsRepositories
     {
         private readonly IWebHostEnvironment _env;
         private readonly MainContext _context;
@@ -53,18 +53,18 @@ namespace TestApp.Repositories
 
             return reaction?.ReactionUrl;
         }
-    
-    public async Task<long> SaveReactionVideoAsync(long userId, long videoId, string videoUrl)
+
+        public async Task<long> SaveReactionVideoAsync(long userId, long videoId, string videoUrl)
         {
             try
             {
-                
+
                 // Save reaction details in the database
                 var reaction = new UserReactions
                 {
                     UserId = userId,
                     VideoId = videoId,
-                    ReactionUrl =videoUrl ,
+                    ReactionUrl = videoUrl,
                     ReactedAt = DateTime.UtcNow
                 };
 
@@ -79,6 +79,27 @@ namespace TestApp.Repositories
                 return 0;
             }
         }
+
+
+        public async Task<List<SurveyResponseCsvDto>> GetSurveyResponsesByVideoAsync(long videoId)
+        {
+            var responses = await _context.UserReactions
+                .Where(r => r.VideoId == videoId)
+                .SelectMany(r => r.SurveyResponses, (reaction, surveyResponse) => new { reaction, surveyResponse })
+                .Select(x => new SurveyResponseCsvDto
+                {
+                    UserName = x.reaction.Users.FirstName,
+                    QuestionText = x.surveyResponse.Question.QuestionText,
+                    AnswerText = x.surveyResponse.SelectedAnswer.AnswerText,
+                    IsCorrect = x.surveyResponse.SelectedAnswer.IsCorrect
+                })
+                .ToListAsync();
+
+            return responses;
+        }
+
+
+        // DTO used for exporting survey responses as CSV.
 
         public async Task SaveSurveyResponsesAsync(long userId, long reactionId, List<UserSurveyResponseDto> responses)
         {
@@ -108,6 +129,19 @@ namespace TestApp.Repositories
         }
     }
 }
+
+
+public class SurveyResponseCsvDto
+{
+    public string UserName { get; set; }
+    public string QuestionText { get; set; }
+    public string AnswerText { get; set; }
+    public bool IsCorrect { get; set; }
+}
+
+
+
+// Supporting DTOs (if not already defined elsewhere)
 public class UserSurveyResponseDto
 {
     public long QuestionId { get; set; }
@@ -119,3 +153,15 @@ public class UserReactionDto
     public string FirstName { get; set; }
     public long ReactionId { get; set; }
 }
+
+//public class UserSurveyResponseDto
+//{
+//    public long QuestionId { get; set; }
+//    public long SelectedAnswerId { get; set; }
+//}
+
+//public class UserReactionDto
+//{
+//    public string FirstName { get; set; }
+//    public long ReactionId { get; set; }
+//}

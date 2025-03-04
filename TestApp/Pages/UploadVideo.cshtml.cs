@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using TestApp.Repositories.Interfaces;
 using TestApp.Model;
 using Microsoft.AspNetCore.Http;
+using System.Text;
 
 public class UploadVideoModel : PageModel
 {
@@ -160,8 +161,8 @@ public class UploadVideoModel : PageModel
         {
             foreach (var question in Questions)
             {
-                List<SurveyAnswerDto> answers= new List<SurveyAnswerDto>();
-                foreach(var answer in question.Answers)
+                List<SurveyAnswerDto> answers = new List<SurveyAnswerDto>();
+                foreach (var answer in question.Answers)
                 {
                     answers.Add(new SurveyAnswerDto
                     {
@@ -173,7 +174,7 @@ public class UploadVideoModel : PageModel
                 var surveyQuestion = new SurveyQuestionDto
                 {
                     QuestionText = question.QuestionText,
-                    Answers =answers
+                    Answers = answers
                 };
 
                 surveyQuestions.Add(surveyQuestion);
@@ -184,6 +185,82 @@ public class UploadVideoModel : PageModel
         await _videoRepository.AddVideoAsync(video, surveyQuestions);
 
         return RedirectToPage("/UploadVideo"); // Refresh the page after upload
+    }
+
+    public async Task<IActionResult> OnGetDownloadSurveyResponsesCsvAsync(long videoId)
+    {
+        // Retrieve survey responses for the given video.
+        var responses = await userReactionRepo.GetSurveyResponsesByVideoAsync(videoId);
+
+        if (responses == null || !responses.Any())
+        {
+            return Content("No survey responses found for this video.");
+        }
+
+        // Group responses by user.
+        var groupedResponses = responses
+            .GroupBy(r => r.UserName)
+            .ToList();
+
+        // Determine the maximum number of responses any user has.
+        int maxResponsesPerUser = groupedResponses.Max(g => g.Count());
+
+        var csvBuilder = new StringBuilder();
+
+        // Build header row.
+        var headerColumns = new List<string> { "User Name" };
+        for (int i = 1; i <= maxResponsesPerUser; i++)
+        {
+            headerColumns.Add("Question " + i);
+        }
+        csvBuilder.AppendLine(string.Join(",", headerColumns));
+
+        // Build a CSV row for each user.
+        foreach (var group in groupedResponses)
+        {
+            var row = new List<string>();
+            // Add username as the first column.
+            row.Add(EscapeForCsv(group.Key));
+
+            int questionNo = 1;
+            // Order responses as needed (here using the order they appear).
+            foreach (var response in group)
+            {
+                string resultText = response.IsCorrect ? "correct" : "incorrect";
+                // Construct the cell text for the survey response.
+                string cellText = $"Question {questionNo}: {response.QuestionText} {response.AnswerText} {resultText}";
+                row.Add(EscapeForCsv(cellText));
+                questionNo++;
+            }
+            // Fill any missing columns if the user has fewer responses.
+            for (int i = questionNo; i <= maxResponsesPerUser; i++)
+            {
+                row.Add("");
+            }
+
+            csvBuilder.AppendLine(string.Join(",", row));
+        }
+
+        byte[] fileBytes = Encoding.UTF8.GetBytes(csvBuilder.ToString());
+        string fileName = $"SurveyResponses_{videoId}.csv";
+        return File(fileBytes, "text/csv", fileName);
+    }
+
+
+    // Helper method to escape CSV fields.
+    private string EscapeForCsv(string field)
+    {
+        if (string.IsNullOrEmpty(field))
+        {
+            return "";
+        }
+        // If the field contains a comma or a quote, wrap it in quotes and escape inner quotes.
+        if (field.Contains(",") || field.Contains("\""))
+        {
+            field = field.Replace("\"", "\"\"");
+            return $"\"{field}\"";
+        }
+        return field;
     }
 
     [ValidateAntiForgeryToken]
