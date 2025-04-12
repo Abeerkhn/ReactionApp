@@ -126,6 +126,43 @@
         .modal-body {
             margin: 1rem 0;
         }
+
+        #timeDisplay {
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg); /* makes the progress start from top */
+        }
+
+        .progress-ring__background {
+            stroke-linecap: round;
+        }
+
+        .progress-ring__circle {
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease;
+            transform: rotate(0deg);
+            transform-origin: 50% 50%;
+        }
+
+
+        .progress-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+
+        #timeText {
+            transform: rotate(90deg); /* counteracts the -90deg of the parent */
+        }
+
+
+
+
     </style>
 </head>
 <body>
@@ -151,7 +188,7 @@
                 var videoId = Model.ExtractYouTubeVideoId(Model.SelectedVideo.VideoUrl);
                 <!-- YouTube embed with controls hidden -->
                 <iframe id="videoFrame" width="560" height="315" class="border rounded"
-                        src="https://www.youtube.com/embed/@videoId?enablejsapi=1&controls=0"
+                        src="https://www.youtube.com/embed/@(videoId)?enablejsapi=1&controls=0"
                         frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen>
                 </iframe>
@@ -165,6 +202,19 @@
                 </video>
             }
         </div>
+
+        <div id="durationDisplay"></div>
+        <div class="progress-container">
+            <svg class="progress-ring" width="100" height="100">
+                <circle class="progress-ring__background" stroke="#eee" stroke-width="4" fill="transparent" r="45" cx="50" cy="50" />
+                <circle class="progress-ring__circle" stroke="red" stroke-width="4" fill="transparent" r="45" cx="50" cy="50" />
+                <!-- Horizontal center text -->
+                <text id="timeText" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-size="16" fill="#333">00:00</text>
+            </svg>
+        </div>
+
+
+
 
         <!-- Custom Play/Pause Control -->
         <div class="d-flex justify-content-center gap-3 mb-4">
@@ -215,12 +265,38 @@
         </div>
     </div>
 
+    <!-- Pause Notification Modal -->
+    <div id="pauseModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h5 class="modal-title">Recording Paused</h5>
+            </div>
+            <div class="modal-body">
+                <p>Your video recording has been paused. Resume watching to continue recording.</p>
+                <button class="btn btn-primary" onclick="closePauseModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         let player;
         let isRecording = false;
         let mediaRecorder;
         let recordedChunks = [];
         let stream;
+        let durationInterval;
+        let youtubeDuration = 0;
+        let youtubeInterval;
+        let youtubePlayerActive = false;
+
+        const circle = document.querySelector('.progress-ring__circle');
+        const radius = circle.r.baseVal.value;
+        const circumference = 2 * Math.PI * radius;
+
+        circle.style.strokeDasharray = `${circumference}`;
+        circle.style.strokeDashoffset = `${circumference}`;
+        setProgress(0);
 
         // On "Got it!" click, attempt to request camera and microphone access.
         document.getElementById("gotItBtn").addEventListener("click", async function () {
@@ -257,14 +333,74 @@
             }
         });
 
-        // Existing event listeners for HTML5 video playback
         document.addEventListener("DOMContentLoaded", function () {
             const videoElement = document.getElementById("videoFrame");
             if (videoElement && videoElement.tagName.toLowerCase() === "video") {
-                videoElement.addEventListener("play", startVideoRecording);
-                videoElement.addEventListener("ended", stopVideoRecording);
+                videoElement.addEventListener("play", () => {
+                    startVideoRecording();
+                    startCountdown(videoElement);
+                });
+
+                videoElement.addEventListener('keydown', function (e) {
+                    if (e.keyCode === 37 || e.keyCode === 39) {
+                        e.preventDefault();
+                    }
+                });
+
+                videoElement.addEventListener("pause", () => {
+                    if (!videoElement.ended) {
+                        showPauseModal();
+                        stopAndReleaseStream();
+                    }
+                });
+
+                videoElement.addEventListener("ended", () => {
+                    stopVideoRecording();
+                    clearInterval(durationInterval);
+                });
+                
+                videoElement.addEventListener("loadedmetadata", () => {
+                    updateTimeDisplay(videoElement);
+                });
+
+                videoElement.addEventListener('timeupdate', () => {
+                    const currentTime = videoElement.currentTime;
+                    const duration = videoElement.duration;
+                    const percentage = (currentTime / duration) * 100;
+                    setProgress(percentage);
+                });
             }
         });
+
+        function updateTimeDisplay(video) {
+            const duration = video.duration;
+            const current = video.currentTime;
+            const remaining = duration - current;
+
+            const minutes = Math.floor(remaining / 60);
+            const seconds = Math.floor(remaining % 60);
+            const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            const percent = (current / duration) * 100;
+            setProgress(percent);
+
+            document.getElementById('timeText').textContent = formattedTime;
+            const totalMinutes = Math.floor(duration / 60);
+            const totalSeconds = Math.floor(duration % 60);
+            const totalFormatted = `${totalMinutes.toString().padStart(2, '0')}:${totalSeconds.toString().padStart(2, '0')}`;
+            document.getElementById('durationDisplay').textContent = `Total Duration: ${totalFormatted}`;
+        }
+
+
+
+        function startCountdown(video) {
+            clearInterval(durationInterval);
+            durationInterval = setInterval(() => {
+                updateTimeDisplay(video);
+                if (video.ended) clearInterval(durationInterval); y
+            }, 500);
+        }
+
 
         // Load YouTube API if needed
         if (@(Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube ? "true" : "false")) {
@@ -287,16 +423,84 @@
         }
 
         function onPlayerStateChange(event) {
-            // Optionally sync custom button text based on player state.
+            const playPauseBtn = document.getElementById("playPauseBtn");
+            let youtubeInterval;
+            document.addEventListener('keydown', function (e) {
+                if (e.keyCode === 37 || e.keyCode === 39) {  // Left arrow (37) or Right arrow (39)
+                    e.preventDefault();
+                }
+            });
+
             if (event.data === YT.PlayerState.PLAYING) {
-                document.getElementById("playPauseBtn").innerText = "Pause";
-            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                document.getElementById("playPauseBtn").innerText = "Play";
+
+
+                playPauseBtn.innerText = "Pause";
+                closePauseModal();
+                youtubeDuration = player.getDuration();
+                const totalMinutes = Math.floor(youtubeDuration / 60);
+                const totalSeconds = Math.floor(youtubeDuration % 60);
+                const totalFormatted = `${totalMinutes.toString().padStart(2, '0')}:${totalSeconds.toString().padStart(2, '0')}`;
+                document.getElementById('durationDisplay').textContent = `Total Duration: ${totalFormatted}`;
+                clearInterval(youtubeInterval);
+
+                youtubeInterval = setInterval(() => {
+                    const currentTime = player.getCurrentTime();
+                    const percentage = (currentTime / youtubeDuration) * 100;
+                    setProgress(percentage);
+
+                    const remaining = youtubeDuration - currentTime;
+                    const minutes = Math.floor(remaining / 60);
+                    const seconds = Math.floor(remaining % 60);
+                    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    document.getElementById('timeText').textContent = formattedTime;
+
+                }, 500);
+
+
+                if (!isRecording) {
+                    startVideoRecording(); // Start if not already recording
+                } else {
+                    resumeVideoRecording(); 
+                }
+                youtubePlayerActive = true;
+
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                clearInterval(youtubeInterval);
+                playPauseBtn.innerText = "Play";
+                showPauseModal();
+                stopAndReleaseStream();
+                pauseVideoRecording(); 
+                youtubePlayerActive = false;
+
+            } else if (event.data === YT.PlayerState.ENDED) {
+                clearInterval(youtubeInterval);
+                playPauseBtn.innerText = "Play";
+
+                stopVideoRecording(); 
+                youtubePlayerActive = false;
             }
-            if (event.data === YT.PlayerState.PLAYING && !isRecording) {
-                startVideoRecording();
-            } else if (event.data === YT.PlayerState.ENDED && isRecording) {
-                stopVideoRecording();
+
+            if (youtubePlayerActive) {
+                blockArrowKeys();
+            } else {
+                unblockArrowKeys();
+            }
+        }
+
+        // Function to block the arrow keys
+        function blockArrowKeys() {
+            document.addEventListener('keydown', disableArrowKeys);
+        }
+
+        // Function to unblock the arrow keys
+        function unblockArrowKeys() {
+            document.removeEventListener('keydown', disableArrowKeys);
+        }
+
+        // Event listener function to disable the arrow keys
+        function disableArrowKeys(e) {
+            if (e.keyCode === 37 || e.keyCode === 39) { // Left arrow (37) or Right arrow (39)
+                e.preventDefault();
             }
         }
 
@@ -332,6 +536,20 @@
         }
 
         document.getElementById("openSurveyModalBtn")?.addEventListener("click", openSurveyModal);
+
+        function pauseVideoRecording() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.pause();
+                console.log("Recording paused");
+            }
+        }
+
+        function resumeVideoRecording() {
+            if (mediaRecorder && mediaRecorder.state === "paused") {
+                mediaRecorder.resume();
+                console.log("Recording resumed");
+            }
+        }
 
         async function stopVideoRecording() {
             if (!isRecording) return;
@@ -404,6 +622,41 @@
                 return null;
             }
         }
+
+        function showPauseModal() {
+            document.getElementById("pauseModal").style.display = "flex";
+        }
+
+        function closePauseModal() {
+            document.getElementById("pauseModal").style.display = "none";
+        }
+
+        function stopAndReleaseStream() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+
+            isRecording = false;
+        }
+
+        function setProgress(percent) {
+            const offset = circumference * (1 - percent / 100);
+            circle.style.strokeDashoffset = offset;
+        }
+
+
+        video.addEventListener("timeupdate", () => {
+            const percent = (video.currentTime / video.duration) * 100;
+            setProgress(percent);
+        });
+
+
+
     </script>
 </body>
 </html>
