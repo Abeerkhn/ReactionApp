@@ -187,11 +187,18 @@
             {
                 var videoId = Model.ExtractYouTubeVideoId(Model.SelectedVideo.VideoUrl);
                 <!-- YouTube embed with controls hidden -->
-                <iframe id="videoFrame" width="560" height="315" class="border rounded"
-                        src="https://www.youtube.com/embed/@(videoId)?enablejsapi=1&controls=0"
-                        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                <iframe id="videoFrame"
+                        width="560"
+                        height="315"
+                        class="border rounded"
+                        src="https://www.youtube.com/embed/@(videoId)?enablejsapi=1&controls=0&disablekb=1"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        tabindex="-1"
+                        pointer-events: none
                         allowfullscreen>
                 </iframe>
+
             }
             else
             {
@@ -290,6 +297,20 @@
         let youtubeInterval;
         let youtubePlayerActive = false;
 
+        window.addEventListener("keydown", function (e) {
+            const isArrowKey = e.key === "ArrowLeft" || e.key === "ArrowRight";
+
+            // Block arrows when focus is on the YouTube iframe
+            const activeElement = document.activeElement;
+            const isYouTubeFocused = activeElement && activeElement.tagName === "IFRAME" && activeElement.id === "videoFrame";
+
+            if (isArrowKey && (youtubePlayerActive || isYouTubeFocused)) {
+                e.preventDefault();
+                console.log("Arrow key blocked:", e.key);
+            }
+        });
+
+
         const circle = document.querySelector('.progress-ring__circle');
         const radius = circle.r.baseVal.value;
         const circumference = 2 * Math.PI * radius;
@@ -340,13 +361,6 @@
                     startVideoRecording();
                     startCountdown(videoElement);
                 });
-
-                videoElement.addEventListener('keydown', function (e) {
-                    if (e.keyCode === 37 || e.keyCode === 39) {
-                        e.preventDefault();
-                    }
-                });
-
                 videoElement.addEventListener("pause", () => {
                     if (!videoElement.ended) {
                         showPauseModal();
@@ -397,11 +411,9 @@
             clearInterval(durationInterval);
             durationInterval = setInterval(() => {
                 updateTimeDisplay(video);
-                if (video.ended) clearInterval(durationInterval); y
+                if (video.ended) clearInterval(durationInterval);
             }, 500);
         }
-
-
         // Load YouTube API if needed
         if (@(Model.SelectedVideo.VideoType == TestApp.Model.VideoType.YouTube ? "true" : "false")) {
             let scriptTag = document.createElement('script');
@@ -417,22 +429,21 @@
             }
             player = new YT.Player('videoFrame', {
                 videoId: videoId,
-                playerVars: { 'autoplay': 0, 'enablejsapi': 1, 'controls': 0 },
+                playerVars: { 'autoplay': 0, 'enablejsapi': 1, 'controls': 0, 'disablekb': 1 },
                 events: { 'onStateChange': onPlayerStateChange }
             });
         }
 
         function onPlayerStateChange(event) {
             const playPauseBtn = document.getElementById("playPauseBtn");
-            let youtubeInterval;
-            document.addEventListener('keydown', function (e) {
-                if (e.keyCode === 37 || e.keyCode === 39) {  // Left arrow (37) or Right arrow (39)
-                    e.preventDefault();
-                }
-            });
 
             if (event.data === YT.PlayerState.PLAYING) {
 
+                if (event.data === YT.PlayerState.PLAYING) {
+                    document.getElementById("videoFrame").style.pointerEvents = "auto";
+                } else {
+                    document.getElementById("videoFrame").style.pointerEvents = "none";
+                }
 
                 playPauseBtn.innerText = "Pause";
                 closePauseModal();
@@ -458,7 +469,7 @@
 
 
                 if (!isRecording) {
-                    startVideoRecording(); // Start if not already recording
+                    startVideoRecording();
                 } else {
                     resumeVideoRecording(); 
                 }
@@ -479,31 +490,7 @@
                 stopVideoRecording(); 
                 youtubePlayerActive = false;
             }
-
-            if (youtubePlayerActive) {
-                blockArrowKeys();
-            } else {
-                unblockArrowKeys();
-            }
         }
-
-        // Function to block the arrow keys
-        function blockArrowKeys() {
-            document.addEventListener('keydown', disableArrowKeys);
-        }
-
-        // Function to unblock the arrow keys
-        function unblockArrowKeys() {
-            document.removeEventListener('keydown', disableArrowKeys);
-        }
-
-        // Event listener function to disable the arrow keys
-        function disableArrowKeys(e) {
-            if (e.keyCode === 37 || e.keyCode === 39) { // Left arrow (37) or Right arrow (39)
-                e.preventDefault();
-            }
-        }
-
         function startVideoRecording() {
             if (isRecording) return;
             isRecording = true;
@@ -648,14 +635,6 @@
             const offset = circumference * (1 - percent / 100);
             circle.style.strokeDashoffset = offset;
         }
-
-
-        video.addEventListener("timeupdate", () => {
-            const percent = (video.currentTime / video.duration) * 100;
-            setProgress(percent);
-        });
-
-
 
     </script>
 </body>
