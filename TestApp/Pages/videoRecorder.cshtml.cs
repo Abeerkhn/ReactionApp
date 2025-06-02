@@ -87,36 +87,98 @@ namespace TestApp.Pages
         //}
 
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> OnPostUploadVideoAsync([FromForm] IFormFile videoFile, long userId, long videoId)
+        //public async Task<IActionResult> OnPostUploadVideoAsync([FromForm] IFormFile videoFile, long userId, long videoId)
+        //{
+        //    if (videoFile == null || videoFile.Length == 0)
+        //    {
+        //        return BadRequest(new { success = false, message = "No file received." });
+        //    }
+
+        //    try
+        //    {
+        //        string uploadPath = Path.Combine(_env.WebRootPath, "userreaction");
+        //        if (!Directory.Exists(uploadPath))
+        //        {
+        //            Directory.CreateDirectory(uploadPath);
+        //        }
+
+        //        string fileName = $"{Guid.NewGuid()}.webm";
+        //        string filePath = Path.Combine(uploadPath, fileName);
+
+        //        using (var stream = new FileStream(filePath, FileMode.Create))
+        //        {
+        //            await videoFile.CopyToAsync(stream);
+        //        }
+
+        //        string savedUrl = $"/userreaction/{fileName}";
+
+        //        // Save record in the database AFTER the file is successfully stored
+        //        long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
+        //       // UserId = userId;
+        //        //ReactionId = reactionId;
+        //        return new JsonResult(new { success = true, videoUrl = savedUrl, reactionId=reactionId });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Server error: {ex.Message}");
+        //        return StatusCode(500, new { success = false, message = "Internal server error." });
+        //    }
+        //}
+
+
+        [HttpPost]
+        public async Task<IActionResult> OnPostUploadChunkAsync(IFormFile videoChunk, long userId, long videoId, int chunkIndex, bool isLastChunk)
         {
-            if (videoFile == null || videoFile.Length == 0)
+            if (videoChunk == null || videoChunk.Length == 0)
             {
-                return BadRequest(new { success = false, message = "No file received." });
+                return BadRequest(new { success = false, message = "No chunk received." });
             }
 
             try
             {
-                string uploadPath = Path.Combine(_env.WebRootPath, "userreaction");
-                if (!Directory.Exists(uploadPath))
+                string userFolder = Path.Combine(_env.WebRootPath, "userreaction", $"video_{videoId}_user_{userId}");
+                if (!Directory.Exists(userFolder))
                 {
-                    Directory.CreateDirectory(uploadPath);
+                    Directory.CreateDirectory(userFolder);
                 }
 
-                string fileName = $"{Guid.NewGuid()}.webm";
-                string filePath = Path.Combine(uploadPath, fileName);
+                string chunkFilePath = Path.Combine(userFolder, $"chunk_{chunkIndex}.webm");
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                using (var stream = new FileStream(chunkFilePath, FileMode.Create))
                 {
-                    await videoFile.CopyToAsync(stream);
+                    await videoChunk.CopyToAsync(stream);
                 }
 
-                string savedUrl = $"/userreaction/{fileName}";
+                // Combine chunks if it's the last one
+                if (isLastChunk)
+                {
+                    string finalVideoPath = Path.Combine(_env.WebRootPath, "userreaction", $"{Guid.NewGuid()}.webm");
 
-                // Save record in the database AFTER the file is successfully stored
-                long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
-               // UserId = userId;
-                //ReactionId = reactionId;
-                return new JsonResult(new { success = true, videoUrl = savedUrl, reactionId=reactionId });
+                    using (var finalStream = new FileStream(finalVideoPath, FileMode.Create))
+                    {
+                        int i = 0;
+                        while (true)
+                        {
+                            string chunkPath = Path.Combine(userFolder, $"chunk_{i}.webm");
+                            if (!System.IO.File.Exists(chunkPath))
+                                break;
+
+                            byte[] chunkBytes = await System.IO.File.ReadAllBytesAsync(chunkPath);
+                            await finalStream.WriteAsync(chunkBytes, 0, chunkBytes.Length);
+                            i++;
+                        }
+                    }
+
+                    // Optionally delete the chunks after merging
+                    Directory.Delete(userFolder, true);
+
+                    string savedUrl = $"/userreaction/{Path.GetFileName(finalVideoPath)}";
+                    long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
+
+                    return new JsonResult(new { success = true, videoUrl = savedUrl, reactionId });
+                }
+
+                return new JsonResult(new { success = true }); // intermediate chunk uploaded
             }
             catch (Exception ex)
             {
@@ -124,6 +186,7 @@ namespace TestApp.Pages
                 return StatusCode(500, new { success = false, message = "Internal server error." });
             }
         }
+
         public async Task<IActionResult> OnGetAsync(string videoId)
         {
             if (string.IsNullOrEmpty(videoId))

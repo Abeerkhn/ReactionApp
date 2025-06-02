@@ -491,21 +491,36 @@
                 youtubePlayerActive = false;
             }
         }
+        let chunkIndex = 0;
+        let isFinalUpload = false;
+
+        // Start of recording - initialize this once
         function startVideoRecording() {
             if (isRecording) return;
             isRecording = true;
             recordedChunks = [];
+            chunkIndex = 0;
+            isFinalUpload = false;
+
             navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then(userStream => {
                     stream = userStream;
                     document.getElementById("cameraFeed").srcObject = stream;
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+
+                    mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: "video/webm",
+                        videoBitsPerSecond: 2500000 // 2.5 Mbps
+                    });
+
+                    // Set up chunk collection during recording
                     mediaRecorder.ondataavailable = event => {
                         if (event.data.size > 0) {
                             recordedChunks.push(event.data);
                         }
                     };
-                    mediaRecorder.start();
+
+                    // Start recording with timeslice for regular chunks
+                    mediaRecorder.start(5000); // Get chunk every 5 seconds
                 })
                 .catch(err => {
                     console.error("Error accessing camera/microphone:", err);
@@ -538,48 +553,73 @@
             }
         }
 
+        let allChunksUploaded = false;
+
         async function stopVideoRecording() {
             if (!isRecording) return;
-            isRecording = false;
-            if (mediaRecorder) {
+
+            return new Promise((resolve) => {
                 mediaRecorder.onstop = async () => {
-                    const blob = new Blob(recordedChunks, { type: "video/webm" });
+                    isRecording = false;
+                    isFinalUpload = true;
+
+                    // Upload all collected chunks
+                    for (let i = 0; i < recordedChunks.length; i++) {
+                        await uploadChunk(recordedChunks[i], i, i === recordedChunks.length - 1);
+                    }
+
+                    // Clean up
                     stream.getTracks().forEach(track => track.stop());
-                    const formData = new FormData();
-                    formData.append("videoFile", blob, "reaction-video.webm");
-                    const authToken = getCookie("AuthToken");
-                    if (!authToken) {
-                        alert("User not logged in. Please log in again.");
-                        return;
-                    }
-                    const userId = parseUserIdFromToken(authToken);
-                    formData.append("userId", userId);
-                    const videoId = getParameterByName('videoId');
-                    formData.append("videoId", videoId);
-                    const csrfTokenElement = document.querySelector("input[name='__RequestVerificationToken']");
-                    const csrfToken = csrfTokenElement ? csrfTokenElement.value : "";
-                    try {
-                        const response = await fetch("/VideoRecorder?handler=UploadVideo", {
-                            method: "POST",
-                            headers: csrfToken ? { "RequestVerificationToken": csrfToken } : {},
-                            body: formData
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            alert("Reaction video saved successfully!");
-                            document.getElementById("reactionId").value = data.reactionId;
-                            document.getElementById("userId").value = userId;
-                            openSurveyModal();
-                        } else {
-                            alert("Failed to save the video.");
-                        }
-                    } catch (error) {
-                        alert("Error uploading video. Please try again.");
-                    }
+                    stream = null;
+                    recordedChunks = [];
+
+                    resolve();
                 };
+
                 mediaRecorder.stop();
+            });
+        }
+        
+        // Separate chunk upload function
+        async function uploadChunk(chunk, index, isLast) {
+            const authToken = getCookie("AuthToken");
+            if (!authToken) {
+                alert("User not logged in. Please log in again.");
+                return;
+            }
+
+            const userId = parseUserIdFromToken(authToken);
+            const videoId = getParameterByName("videoId");
+            const csrfTokenElement = document.querySelector("input[name='__RequestVerificationToken']");
+            const csrfToken = csrfTokenElement ? csrfTokenElement.value : "";
+
+            const formData = new FormData();
+            formData.append("videoChunk", chunk, `chunk_${index}.webm`);
+            formData.append("userId", userId);
+            formData.append("videoId", videoId);
+            formData.append("chunkIndex", index);
+            formData.append("isLastChunk", isLast.toString());
+
+            try {
+                const response = await fetch("/VideoRecorder?handler=UploadChunk", {
+                    method: "POST",
+                    headers: csrfToken ? { "RequestVerificationToken": csrfToken } : {},
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (isLast && data.success && data.reactionId) {
+                    document.getElementById("reactionId").value = data.reactionId;
+                    document.getElementById("userId").value = userId;
+                    openSurveyModal();
+                }
+            } catch (error) {
+                console.error("Error uploading chunk:", error);
+                // Implement retry logic here if needed
             }
         }
+
 
         function getParameterByName(name, url = window.location.href) {
             name = name.replace(/[\[\]]/g, '\\$&');
