@@ -159,6 +159,7 @@
         #timeText {
             transform: rotate(90deg); /* counteracts the -90deg of the parent */
         }
+        
 
 
 
@@ -580,7 +581,6 @@
             });
         }
         
-        // Separate chunk upload function
         async function uploadChunk(chunk, index, isLast) {
             const authToken = getCookie("AuthToken");
             if (!authToken) {
@@ -612,12 +612,68 @@
                 if (isLast && data.success && data.reactionId) {
                     document.getElementById("reactionId").value = data.reactionId;
                     document.getElementById("userId").value = userId;
+
+                    // Show success pop-up
+                    showSuccessPopup("Your video has been saved successfully!");
+
+                    // Open survey modal (if needed)
                     openSurveyModal();
                 }
             } catch (error) {
                 console.error("Error uploading chunk:", error);
-                // Implement retry logic here if needed
+                // Show error pop-up if upload fails
+                showErrorPopup("Failed to save the video. Please try again.");
             }
+        }
+
+        function showSuccessPopup(message) {
+            const popup = document.createElement("div");
+            popup.className = "success-popup";
+            popup.innerHTML = `
+                <div class="popup-content">
+                    <span class="close-btn">&times;</span>
+                    <p>${message}</p>
+                </div>
+            `;
+
+            document.body.appendChild(popup);
+
+            // Animate with JS instead of CSS keyframes
+            popup.style.transform = "translateX(100%)";
+            popup.style.opacity = "0";
+            setTimeout(() => {
+                popup.style.transition = "all 0.5s ease-out";
+                popup.style.transform = "translateX(0)";
+                popup.style.opacity = "1";
+            }, 10); // Small delay to trigger transition
+
+            popup.querySelector(".close-btn").addEventListener("click", () => {
+                popup.remove();
+            });
+
+            setTimeout(() => popup.remove(), 5000);
+        }
+
+        // Function to show error pop-up
+        function showErrorPopup(message) {
+            const popup = document.createElement("div");
+            popup.className = "error-popup";
+            popup.innerHTML = `
+                <div class="popup-content">
+                    <span class="close-btn">&times;</span>
+                    <p>${message}</p>
+                </div>
+            `;
+
+            document.body.appendChild(popup);
+
+            popup.querySelector(".close-btn").addEventListener("click", () => {
+                popup.remove();
+            });
+
+            setTimeout(() => {
+                popup.remove();
+            }, 5000);
         }
 
 

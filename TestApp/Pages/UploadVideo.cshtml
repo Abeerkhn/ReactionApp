@@ -104,11 +104,14 @@
     <!-- Reaction Video Modal -->
     <div id="reactionVideoModal" class="modal">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeModal('reactionVideoModal')">&times;</span>
+            <span class="close-btn" onclick="closeReactionVideoModal()">&times;</span>
             <h2>Reaction Video</h2>
             <input type="hidden" id="reactionIdHidden" value="" />
-            <iframe id="reactionVideoIframe" width="100%" height="400px" frameborder="0" allowfullscreen></iframe>
-            <!-- Button to open Survey Responses Modal -->
+
+            <!-- Replace iframe with video element -->
+            <video id="reactionVideoPlayer" width="100%" height="400px" controls>
+                <source src="" type="video/mp4">
+            </video>
             <button class="btn btn-secondary mt-2" onclick="openSurveyResponsesModal()">View Survey Responses</button>
         </div>
     </div>
@@ -126,6 +129,11 @@
 
     <!-- Scripts -->
     <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('Iframe exists:', !!document.getElementById('reactionVideoIframe'));
+        });
+
         // Modal show/hide functions (plain JS)
         function showModal(modalId, previousModalId = null) {
             const modal = document.getElementById(modalId);
@@ -278,20 +286,32 @@
                 .catch(error => console.error("Error fetching user reactions:", error));
         }
 
+        // Fetch and show reaction video
         function fetchReactionVideo(reactionId) {
-            // Update the hidden field in the reaction video modal
             document.getElementById("reactionIdHidden").value = reactionId;
             fetch(`/UploadVideo?handler=ReactionVideo&reactionId=${reactionId}`)
                 .then(response => response.json())
                 .then(videoUrl => {
-                    if (!videoUrl) {
-                        alert("Reaction video not found.");
-                        return;
+                    const videoPlayer = document.getElementById("reactionVideoPlayer");
+                    if (videoPlayer) {
+                        videoPlayer.src = videoUrl;
+                        videoPlayer.load();
+                        showModal("reactionVideoModal");
+                    } else {
+                        console.error("Video player element not found");
                     }
-                    document.getElementById("reactionVideoIframe").src = videoUrl;
-                    showModal("reactionVideoModal", "userReactionsListModal");
                 })
                 .catch(error => console.error("Error fetching reaction video:", error));
+        }
+
+        // Close reaction video modal
+        function closeReactionVideoModal() {
+            const videoPlayer = document.getElementById("reactionVideoPlayer");
+            if (videoPlayer) {
+                videoPlayer.pause();
+                videoPlayer.currentTime = 0;
+            }
+            closeModal("reactionVideoModal");
         }
 
         // Functions to open/close survey responses modal
@@ -337,10 +357,6 @@
         // Close functions for other modals
         function closeUserReactionsModal() { closeModal("userReactionsModal"); }
         function closeUserReactionsListModal() { closeModal("userReactionsListModal"); }
-        function closeReactionVideoModal() {
-            document.getElementById("reactionVideoIframe").src = "";
-            closeModal("reactionVideoModal");
-        }
     </script>
 </body>
 
