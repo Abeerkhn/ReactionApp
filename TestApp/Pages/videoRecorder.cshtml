@@ -600,10 +600,18 @@
             formData.append("chunkIndex", index);
             formData.append("isLastChunk", isLast.toString());
 
+            // ✅ Include CSRF token in the form
+            if (csrfToken) {
+                formData.append("__RequestVerificationToken", csrfToken);
+            }
+
             try {
                 const response = await fetch("/VideoRecorder?handler=UploadChunk", {
                     method: "POST",
-                    headers: csrfToken ? { "RequestVerificationToken": csrfToken } : {},
+                    headers: {
+                        // ✅ Only include the header if not sending Content-Type manually
+                        "RequestVerificationToken": csrfToken
+                    },
                     body: formData
                 });
 
@@ -612,19 +620,15 @@
                 if (isLast && data.success && data.reactionId) {
                     document.getElementById("reactionId").value = data.reactionId;
                     document.getElementById("userId").value = userId;
-
-                    // Show success pop-up
                     showSuccessPopup("Your video has been saved successfully!");
-
-                    // Open survey modal (if needed)
                     openSurveyModal();
                 }
             } catch (error) {
                 console.error("Error uploading chunk:", error);
-                // Show error pop-up if upload fails
                 showErrorPopup("Failed to save the video. Please try again.");
             }
         }
+
 
         function showSuccessPopup(message) {
             const popup = document.createElement("div");
