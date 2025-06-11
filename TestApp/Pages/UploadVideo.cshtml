@@ -36,6 +36,8 @@
                             <button class="btn btn-sm btn-primary" onclick="seeReactions(@video.Id)">See Reactions</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteVideo(@video.Id)">Delete</button>
                             <button class="btn btn-sm btn-info" onclick="downloadSurveyResponses(@video.Id)">Download CSV</button>
+                            <button class="btn btn-sm btn-success" onclick="downloadVideo('@video.VideoUrl')">Download Video</button>
+
 
                         </td>
                     </tr>
@@ -108,14 +110,22 @@
             <h2>Reaction Video</h2>
             <input type="hidden" id="reactionIdHidden" value="" />
 
-            <!-- Replace iframe with video element -->
+            <!-- Video Player -->
             <video id="reactionVideoPlayer" width="100%" height="400px" controls>
                 <source src="" type="video/mp4">
             </video>
-            <button class="btn btn-secondary mt-2" onclick="openSurveyResponsesModal()">View Survey Responses</button>
+
+            <!-- Action Buttons -->
+            <div class="mt-2">
+                <button class="btn btn-secondary" onclick="openSurveyResponsesModal()">
+                    View Survey Responses
+                </button>
+                <button class="btn btn-success" onclick="downloadCurrentReactionVideo()">
+                    Download Reaction Video
+                </button>
+            </div>
         </div>
     </div>
-
     <!-- Survey Responses Modal -->
     <div id="surveyResponsesModal" class="modal">
         <div class="modal-content">
@@ -151,6 +161,49 @@
             }
         }
 
+        function downloadVideo(filePath) {
+            // Extract filename from path (fallback: "video.mp4")
+            const fileName = filePath.split('/').pop() || 'video.mp4';
+
+            // Create a hidden download link
+            const link = document.createElement('a');
+            link.href = filePath; // Path to video in wwwroot
+            link.download = fileName; // Force download with this filename
+            link.style.display = 'none'; // Hide the link
+
+            // Add to DOM (required for Firefox)
+            document.body.appendChild(link);
+
+            // Trigger the download
+            link.click();
+
+            // Clean up
+            document.body.removeChild(link);
+        }
+        function downloadCurrentReactionVideo() {
+            const videoPlayer = document.getElementById('reactionVideoPlayer');
+            const reactionId = document.getElementById('reactionIdHidden').value;
+
+            if (!videoPlayer || !videoPlayer.src) {
+                alert('No reaction video loaded');
+                return;
+            }
+
+            // Create a temporary download link
+            const link = document.createElement('a');
+            link.href = videoPlayer.src;
+            link.download = `reaction_${reactionId || Date.now()}.mp4`;
+            link.style.display = 'none';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Clean up
+            setTimeout(() => {
+                window.URL.revokeObjectURL(link.href);
+            }, 100);
+        }
 
 
         // Toggle video input based on type
