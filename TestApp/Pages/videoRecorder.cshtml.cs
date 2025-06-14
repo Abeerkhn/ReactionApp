@@ -87,45 +87,6 @@ namespace TestApp.Pages
         //}
 
         [ValidateAntiForgeryToken]
-        //public async Task<IActionResult> OnPostUploadVideoAsync([FromForm] IFormFile videoFile, long userId, long videoId)
-        //{
-        //    if (videoFile == null || videoFile.Length == 0)
-        //    {
-        //        return BadRequest(new { success = false, message = "No file received." });
-        //    }
-
-        //    try
-        //    {
-        //        string uploadPath = Path.Combine(_env.WebRootPath, "userreaction");
-        //        if (!Directory.Exists(uploadPath))
-        //        {
-        //            Directory.CreateDirectory(uploadPath);
-        //        }
-
-        //        string fileName = $"{Guid.NewGuid()}.webm";
-        //        string filePath = Path.Combine(uploadPath, fileName);
-
-        //        using (var stream = new FileStream(filePath, FileMode.Create))
-        //        {
-        //            await videoFile.CopyToAsync(stream);
-        //        }
-
-        //        string savedUrl = $"/userreaction/{fileName}";
-
-        //        // Save record in the database AFTER the file is successfully stored
-        //        long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
-        //        // UserId = userId;
-        //        //ReactionId = reactionId;
-        //        return new JsonResult(new { success = true, videoUrl = savedUrl, reactionId = reactionId });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"Server error: {ex.Message}");
-        //        return StatusCode(500, new { success = false, message = "Internal server error." });
-        //    }
-        //}
-
-
         [HttpPost]
         public async Task<IActionResult> OnPostUploadChunkAsync(IFormFile videoChunk, long userId, long videoId, int chunkIndex, bool isLastChunk)
         {
