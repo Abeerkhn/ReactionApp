@@ -521,7 +521,7 @@
                     };
 
                     // Start recording with timeslice for regular chunks
-                    mediaRecorder.start(100); // Get chunk every 5 seconds
+                    mediaRecorder.start(1000); // Get chunk every 5 seconds
                 })
                 .catch(err => {
                     console.error("Error accessing camera/microphone:", err);
