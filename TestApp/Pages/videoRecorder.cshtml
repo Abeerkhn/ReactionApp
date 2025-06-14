@@ -125,6 +125,9 @@
 
         .modal-body {
             margin: 1rem 0;
+            max-height: 60vh; /* limits height to 60% of viewport */
+            overflow-y: auto; /* adds vertical scroll */
+            padding-right: 10px; /* avoids scroll bar overlapping content */
         }
 
         #timeDisplay {
@@ -521,7 +524,7 @@
                     };
 
                     // Start recording with timeslice for regular chunks
-                    mediaRecorder.start(100); // Get chunk every 5 seconds
+                    mediaRecorder.start(1000); // Get chunk every 5 seconds
                 })
                 .catch(err => {
                     console.error("Error accessing camera/microphone:", err);
