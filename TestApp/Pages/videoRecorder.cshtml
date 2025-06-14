@@ -560,9 +560,12 @@
             if (!isRecording) return;
 
             return new Promise((resolve) => {
+                
                 mediaRecorder.onstop = async () => {
                     isRecording = false;
                     isFinalUpload = true;
+
+                    openSurveyModal();
 
                     // Upload all collected chunks
                     for (let i = 0; i < recordedChunks.length; i++) {
@@ -621,7 +624,6 @@
                     document.getElementById("reactionId").value = data.reactionId;
                     document.getElementById("userId").value = userId;
                     showSuccessPopup("Your video has been saved successfully!");
-                    openSurveyModal();
                 }
             } catch (error) {
                 console.error("Error uploading chunk:", error);
