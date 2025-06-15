@@ -300,6 +300,7 @@
         let youtubeDuration = 0;
         let youtubeInterval;
         let youtubePlayerActive = false;
+       const uploadSessionId = crypto.randomUUID(); // Or any GUID generator
 
         window.addEventListener("keydown", function (e) {
             const isArrowKey = e.key === "ArrowLeft" || e.key === "ArrowRight";
@@ -504,7 +505,6 @@
             isRecording = true;
             recordedChunks = [];
             chunkIndex = 0;
-            isFinalUpload = false;
 
             navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then(userStream => {
@@ -513,25 +513,24 @@
 
                     mediaRecorder = new MediaRecorder(stream, {
                         mimeType: "video/webm",
-                        videoBitsPerSecond: 100000 // 2.5 Mbps
+                        videoBitsPerSecond: 1000000 // ~1Mbps (adjust as needed)
                     });
 
-                    // Set up chunk collection during recording
                     mediaRecorder.ondataavailable = event => {
                         if (event.data.size > 0) {
                             recordedChunks.push(event.data);
                         }
                     };
 
-                    // Start recording with timeslice for regular chunks
-                    mediaRecorder.start(1000); // Get chunk every 5 seconds
+                    mediaRecorder.start(); // No timeslice - collect full blob
                 })
                 .catch(err => {
-                    console.error("Error accessing camera/microphone:", err);
+                    console.error("Error accessing camera/mic:", err);
                     alert("Please allow camera and microphone access.");
                     isRecording = false;
                 });
         }
+
 
         function openSurveyModal() {
             document.getElementById("surveyModal").style.display = "flex";
@@ -563,17 +562,22 @@
             if (!isRecording) return;
 
             return new Promise((resolve) => {
-                
                 mediaRecorder.onstop = async () => {
                     isRecording = false;
-                    isFinalUpload = true;
 
-                    // Upload all collected chunks
-                    for (let i = 0; i < recordedChunks.length; i++) {
-                        await uploadChunk(recordedChunks[i], i, i === recordedChunks.length - 1);
+                    const completeBlob = new Blob(recordedChunks, { type: "video/webm" });
+                    const chunkSize = 1024 * 1024 * 1; // 1MB chunks
+                    const totalChunks = Math.ceil(completeBlob.size / chunkSize);
+
+                    for (let i = 0; i < totalChunks; i++) {
+                        const start = i * chunkSize;
+                        const end = Math.min(completeBlob.size, start + chunkSize);
+                        const chunk = completeBlob.slice(start, end);
+                        const isLast = (i === totalChunks - 1);
+
+                        await uploadChunk(chunk, i, isLast);
                     }
 
-                    // Clean up
                     stream.getTracks().forEach(track => track.stop());
                     stream = null;
                     recordedChunks = [];
@@ -584,6 +588,7 @@
                 mediaRecorder.stop();
             });
         }
+
         
         async function uploadChunk(chunk, index, isLast) {
             const authToken = getCookie("AuthToken");
@@ -596,11 +601,11 @@
             const videoId = getParameterByName("videoId");
             const csrfTokenElement = document.querySelector("input[name='__RequestVerificationToken']");
             const csrfToken = csrfTokenElement ? csrfTokenElement.value : "";
-
             const formData = new FormData();
             formData.append("videoChunk", chunk, `chunk_${index}.webm`);
             formData.append("userId", userId);
             formData.append("videoId", videoId);
+            formData.append("sessionId", uploadSessionId);
             formData.append("chunkIndex", index);
             formData.append("isLastChunk", isLast.toString());
 

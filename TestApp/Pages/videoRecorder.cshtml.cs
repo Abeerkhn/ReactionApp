@@ -88,47 +88,46 @@ namespace TestApp.Pages
 
         [ValidateAntiForgeryToken]
         [HttpPost]
-        public async Task<IActionResult> OnPostUploadChunkAsync(IFormFile videoChunk, long userId, long videoId, int chunkIndex, bool isLastChunk)
+        public async Task<IActionResult> OnPostUploadChunkAsync(IFormFile videoChunk, long userId, long videoId, int chunkIndex, [FromForm] string isLastChunk, string sessionId)
         {
-            if (videoChunk == null || videoChunk.Length == 0)
+            if (videoChunk == null || videoChunk.Length == 0 || string.IsNullOrWhiteSpace(sessionId))
             {
-                return BadRequest(new { success = false, message = "No chunk received" });
+                return BadRequest(new { success = false, message = "Invalid upload request" });
             }
 
             try
             {
-                // 1. Set up temp directory
-                string tempFolder = Path.Combine(_env.WebRootPath, "temp_chunks", $"video_{videoId}_user_{userId}");
+                // 1. Folder per session ID
+                string tempFolder = Path.Combine(_env.WebRootPath, "temp_chunks", sessionId);
                 Directory.CreateDirectory(tempFolder);
 
-                // 2. Atomic write operation
-                string tempPath = Path.Combine(tempFolder, $"{chunkIndex}.tmp");
-                string finalChunkPath = Path.Combine(tempFolder, $"{chunkIndex}.webm");
+                // 2. Unique chunk file name
+                string chunkFileName = $"chunk_{chunkIndex}";
+                string tempPath = Path.Combine(tempFolder, $"{chunkFileName}.tmp");
+                string finalChunkPath = Path.Combine(tempFolder, $"{chunkFileName}.webm");
 
+                // 3. Save chunk
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     await videoChunk.CopyToAsync(stream);
                 }
                 System.IO.File.Move(tempPath, finalChunkPath);
 
-                // 3. Handle final chunk
-                if (isLastChunk)
+                // 4. Final chunk = merge
+                bool last = bool.TryParse(isLastChunk, out var b) && b;
+                if (last)
                 {
-                    // Verify all chunks exist
                     int expectedChunks = chunkIndex + 1;
+
                     for (int i = 0; i < expectedChunks; i++)
                     {
-                        if (!System.IO.File.Exists(Path.Combine(tempFolder, $"{i}.webm")))
+                        string chunkPath = Path.Combine(tempFolder, $"chunk_{i}.webm");
+                        if (!System.IO.File.Exists(chunkPath))
                         {
-                            return BadRequest(new
-                            {
-                                success = false,
-                                message = $"Missing chunk {i}. Upload failed."
-                            });
+                            return BadRequest(new { success = false, message = $"Missing chunk {i}. Upload failed." });
                         }
                     }
 
-                    // 4. Stream-based merge
                     string finalFileName = $"{Guid.NewGuid()}.webm";
                     string finalVideoPath = Path.Combine(_env.WebRootPath, "userreaction", finalFileName);
 
@@ -136,7 +135,7 @@ namespace TestApp.Pages
                     {
                         for (int i = 0; i < expectedChunks; i++)
                         {
-                            string chunkPath = Path.Combine(tempFolder, $"{i}.webm");
+                            string chunkPath = Path.Combine(tempFolder, $"chunk_{i}.webm");
                             await using (var chunkStream = System.IO.File.OpenRead(chunkPath))
                             {
                                 await chunkStream.CopyToAsync(finalStream);
@@ -144,30 +143,16 @@ namespace TestApp.Pages
                         }
                     }
 
-                    // 5. Verify merged file
                     if (new FileInfo(finalVideoPath).Length == 0)
                     {
                         System.IO.File.Delete(finalVideoPath);
-                        return StatusCode(500, new
-                        {
-                            success = false,
-                            message = "Failed to merge video"
-                        });
+                        return StatusCode(500, new { success = false, message = "Failed to merge video" });
                     }
 
-                    // 6. Save to DB
                     string savedUrl = $"/userreaction/{finalFileName}";
-                    long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(
-                        userId,
-                        videoId,
-                        savedUrl);
+                    long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
 
-                    // 7. Cleanup
-                    try { Directory.Delete(tempFolder, true); }
-                    catch (Exception ex)
-                    {
-                        
-                    }
+                    try { Directory.Delete(tempFolder, true); } catch { }
 
                     return new JsonResult(new
                     {
@@ -181,12 +166,7 @@ namespace TestApp.Pages
             }
             catch (Exception ex)
             {
-               
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Internal server error"
-                });
+                return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
         public async Task<IActionResult> OnGetAsync(string videoId)
