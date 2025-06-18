@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using TestApp.Repositories.Interfaces;
 using TestApp.Model;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
 
 namespace TestApp.Pages
 {
@@ -33,6 +35,15 @@ namespace TestApp.Pages
             }
 
             return Page();
+        }
+
+        public async Task<IActionResult> OnPostLogoutAsync()
+        {
+            // sign out of the cookie
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // redirect to the Login page
+            return RedirectToPage("/Login");
         }
     }
 }

@@ -4,7 +4,7 @@
     ViewData["Title"] = "Select a Video";
 }
 @{
-    Layout = null;
+    Layout = "_Layout";
 }
 
 <!DOCTYPE html>
@@ -109,6 +109,15 @@
                 }
             </tbody>
         </table>
+    </div>
+
+
+    <div style="position: absolute; top: 1rem; right: 1rem;">
+        <form method="post" asp-page-handler="Logout">
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+                Logout
+            </button>
+        </form>
     </div>
 
     <!-- Consent Modal -->
