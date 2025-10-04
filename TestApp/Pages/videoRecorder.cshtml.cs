@@ -14,12 +14,14 @@ namespace TestApp.Pages
         private readonly IVideoRepository _videoRepository;
         private readonly IWebHostEnvironment _env;
         private readonly IUserReactionsRepositories userReactionsRepositories;
+        readonly ILogger _logger;
 
-        public VideoRecorderModel(IVideoRepository videoRepository,IUserReactionsRepositories userReactionsRepositories, IWebHostEnvironment webHostEnvironment)
+        public VideoRecorderModel(IVideoRepository videoRepository,IUserReactionsRepositories userReactionsRepositories, IWebHostEnvironment webHostEnvironment, ILogger logger)
         {
             _videoRepository = videoRepository;
             _env = webHostEnvironment;
             this.userReactionsRepositories = userReactionsRepositories;
+            _logger = logger;
 
         }
 
@@ -88,18 +90,29 @@ namespace TestApp.Pages
 
         [ValidateAntiForgeryToken]
         [HttpPost]
-        public async Task<IActionResult> OnPostUploadChunkAsync(IFormFile videoChunk, long userId, long videoId, int chunkIndex, [FromForm] string isLastChunk, string sessionId)
+        public async Task<IActionResult> OnPostUploadChunkAsync(
+        IFormFile videoChunk,
+        long userId,
+        long videoId,
+        int chunkIndex,
+        [FromForm] string isLastChunk,
+        string sessionId)
         {
+            _logger.LogInformation("Received upload request: userId={UserId}, videoId={VideoId}, chunkIndex={ChunkIndex}, isLastChunk={IsLastChunk}, sessionId={SessionId}",
+                userId, videoId, chunkIndex, isLastChunk, sessionId);
+
             if (videoChunk == null || videoChunk.Length == 0 || string.IsNullOrWhiteSpace(sessionId))
             {
+                _logger.LogWarning("Invalid upload request: missing videoChunk or sessionId");
                 return BadRequest(new { success = false, message = "Invalid upload request" });
             }
 
             try
             {
-                // 1. Folder per session ID
+                // 1. Create folder for the session ID
                 string tempFolder = Path.Combine(_env.WebRootPath, "temp_chunks", sessionId);
                 Directory.CreateDirectory(tempFolder);
+                _logger.LogInformation("Created temp folder for session: {TempFolder}", tempFolder);
 
                 // 2. Unique chunk file name
                 string chunkFileName = $"chunk_{chunkIndex}";
@@ -112,22 +125,28 @@ namespace TestApp.Pages
                     await videoChunk.CopyToAsync(stream);
                 }
                 System.IO.File.Move(tempPath, finalChunkPath);
+                _logger.LogInformation("Saved chunk #{ChunkIndex} to {Path}", chunkIndex, finalChunkPath);
 
-                // 4. Final chunk = merge
+                // 4. Check if last chunk and merge
                 bool last = bool.TryParse(isLastChunk, out var b) && b;
                 if (last)
                 {
+                    _logger.LogInformation("Last chunk received. Starting merge...");
+
                     int expectedChunks = chunkIndex + 1;
 
+                    // Validate all chunks exist
                     for (int i = 0; i < expectedChunks; i++)
                     {
                         string chunkPath = Path.Combine(tempFolder, $"chunk_{i}.webm");
                         if (!System.IO.File.Exists(chunkPath))
                         {
+                            _logger.LogError("Missing chunk {ChunkIndex} for session {SessionId}", i, sessionId);
                             return BadRequest(new { success = false, message = $"Missing chunk {i}. Upload failed." });
                         }
                     }
 
+                    // Merge chunks into final video
                     string finalFileName = $"{Guid.NewGuid()}.webm";
                     string finalVideoPath = Path.Combine(_env.WebRootPath, "userreaction", finalFileName);
 
@@ -143,16 +162,29 @@ namespace TestApp.Pages
                         }
                     }
 
+                    _logger.LogInformation("Merged video saved to {FinalVideoPath}", finalVideoPath);
+
                     if (new FileInfo(finalVideoPath).Length == 0)
                     {
                         System.IO.File.Delete(finalVideoPath);
+                        _logger.LogError("Merged video file is empty. Deleting corrupted file.");
                         return StatusCode(500, new { success = false, message = "Failed to merge video" });
                     }
 
                     string savedUrl = $"/userreaction/{finalFileName}";
+                    _logger.LogInformation("Video merge successful. Saving to DB. URL: {SavedUrl}", savedUrl);
+
                     long reactionId = await userReactionsRepositories.SaveReactionVideoAsync(userId, videoId, savedUrl);
 
-                    try { Directory.Delete(tempFolder, true); } catch { }
+                    try
+                    {
+                        Directory.Delete(tempFolder, true);
+                        _logger.LogInformation("Deleted temporary folder: {TempFolder}", tempFolder);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        _logger.LogWarning("Failed to delete temp folder: {TempFolder}. Error: {Error}", tempFolder, cleanupEx.Message);
+                    }
 
                     return new JsonResult(new
                     {
@@ -166,9 +198,17 @@ namespace TestApp.Pages
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = "Internal server error" });
+                _logger.LogError(ex, "An error occurred during chunk upload processing.");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Internal server error",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace  // optional: remove in production for security
+                });
             }
         }
+
         public async Task<IActionResult> OnGetAsync(string videoId)
         {
             if (string.IsNullOrEmpty(videoId))
