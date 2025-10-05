@@ -566,7 +566,7 @@
                     isRecording = false;
 
                     const completeBlob = new Blob(recordedChunks, { type: "video/webm" });
-                    const chunkSize = 1024 * 1024 * 1; // 1MB chunks
+                    const chunkSize = 1024 * 1024 * 0.6;                    // 0.6MB chunks
                     const totalChunks = Math.ceil(completeBlob.size / chunkSize);
 
                     for (let i = 0; i < totalChunks; i++) {
