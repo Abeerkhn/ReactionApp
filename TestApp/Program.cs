@@ -27,6 +27,13 @@ builder.Services.AddScoped<IUserReactionsRepositories, UserReactionsRepository>(
 builder.Services.AddScoped<IVideoRepository, VideoRepository>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordService>();
+builder.Services.AddScoped<PasswordService>();
+builder.Services.AddSingleton<ILogger>(sp =>
+{
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    return loggerFactory.CreateLogger("DefaultLogger");
+});
+
 
 // 4) Configure form options for large file uploads
 builder.Services.Configure<FormOptions>(options =>
