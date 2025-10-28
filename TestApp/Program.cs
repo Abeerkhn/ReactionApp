@@ -41,6 +41,16 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = 524_288_000; // 500 MB
 });
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = long.MaxValue; // Allow huge uploads
+});
+
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = long.MaxValue; // For IIS / Plesk
+});
+
 // 5) Configure authentication (Cookies for UI, JWT for APIs)
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]);
